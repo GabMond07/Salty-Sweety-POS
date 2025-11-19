@@ -16,10 +16,13 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
 } from "recharts";
 
 export default function Dashboard() {
@@ -80,6 +83,94 @@ export default function Dashboard() {
         dia: parseInt(dia),
         total,
       }));
+    },
+  });
+
+  // Query para ventas de las últimas 4 semanas
+  const { data: ventasSemanas, isLoading: loadingVentasSemanas } = useQuery({
+    queryKey: ["ventasSemanas"],
+    queryFn: async () => {
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+      const { data, error } = await supabase
+        .from("ventas")
+        .select("total, created_at")
+        .gte("created_at", fourWeeksAgo.toISOString())
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      // Agrupar por semana
+      const semanas = {};
+      data?.forEach((v) => {
+        const fecha = new Date(v.created_at);
+        const diff = Math.floor(
+          (new Date().getTime() - fecha.getTime()) / (7 * 24 * 60 * 60 * 1000)
+        );
+        const semanaKey = 4 - diff;
+        if (semanaKey >= 1 && semanaKey <= 4) {
+          semanas[semanaKey] = (semanas[semanaKey] || 0) + (v.total || 0);
+        }
+      });
+
+      return [1, 2, 3, 4].map((sem) => ({
+        semana: `Sem ${sem}`,
+        total: semanas[sem] || 0,
+      }));
+    },
+  });
+
+  // Query para ventas de los últimos 6 meses
+  const { data: ventasMeses, isLoading: loadingVentasMeses } = useQuery({
+    queryKey: ["ventasMeses"],
+    queryFn: async () => {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+      const { data, error } = await supabase
+        .from("ventas")
+        .select("total, created_at")
+        .gte("created_at", sixMonthsAgo.toISOString())
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      // Agrupar por mes
+      const meses = {};
+      const mesesNombres = [
+        "Ene",
+        "Feb",
+        "Mar",
+        "Abr",
+        "May",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dic",
+      ];
+
+      data?.forEach((v) => {
+        const fecha = new Date(v.created_at);
+        const mesKey = `${mesesNombres[fecha.getMonth()]}`;
+        meses[mesKey] = (meses[mesKey] || 0) + (v.total || 0);
+      });
+
+      const result = [];
+      for (let i = 5; i >= 0; i--) {
+        const fecha = new Date();
+        fecha.setMonth(fecha.getMonth() - i);
+        const mesNombre = mesesNombres[fecha.getMonth()];
+        result.push({
+          mes: mesNombre,
+          total: meses[mesNombre] || 0,
+        });
+      }
+
+      return result;
     },
   });
 
@@ -223,7 +314,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 lg:mb-12 bg-gradient-to-r from-pink-100 via-purple-100 to-blue-100 p-6 lg:p-8 rounded-2xl shadow-sm border border-pink-50">
+        <div className="mb-6 bg-gradient-to-r from-pink-100 via-purple-100 to-blue-100 p-6 lg:p-8 rounded-2xl shadow-sm border border-pink-50">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
@@ -241,30 +332,49 @@ export default function Dashboard() {
             </div>
             <div className="mt-4 lg:mt-0 flex items-center space-x-4">
               <BarChart3 className="w-6 h-6 text-blue-600" />
-              <span className="text-sm text-gray-600">Resumen Mensual</span>
+              <span className="text-sm text-gray-600">Resumen General</span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 mb-8">
+        {/* Accesos Rápidos - Movidos arriba */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+            <span>⚡</span>
+            <span>Accesos Rápidos</span>
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {quickActions.map((action, index) => (
+              <button
+                key={index}
+                onClick={() => navigate(action.path)}
+                className={`${action.color} shadow-sm p-4 rounded-xl transition-all duration-300 hover:scale-105 flex flex-col items-center space-y-2 text-center`}
+              >
+                <action.icon className="w-7 h-7" />
+                <span className="text-sm font-semibold">{action.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Métricas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {metrics.map((metric, index) => (
             <div
               key={index}
-              className={`bg-white rounded-2xl shadow-sm p-6 border-l-4 hover:shadow-md transition-all duration-300 ${
-                metric.alert ? "border-red-100" : "border-transparent"
+              className={`bg-white rounded-xl shadow-sm p-5 border-l-4 hover:shadow-md transition-all duration-300 ${
+                metric.alert ? "border-red-200" : "border-transparent"
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-600 mb-1">
+                  <p className="text-xs font-medium text-gray-600 mb-1">
                     {metric.title}
                   </p>
                   {metric.loading ? (
-                    <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-lg"></div>
+                    <div className="h-8 w-28 bg-gray-100 animate-pulse rounded-lg"></div>
                   ) : (
-                    <p
-                      className={`text-2xl lg:text-3xl font-bold ${metric.textColor}`}
-                    >
+                    <p className={`text-2xl font-bold ${metric.textColor}`}>
                       {metric.value}
                     </p>
                   )}
@@ -290,45 +400,111 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center space-x-2">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-                <span>Ventas por Día (Este Mes)</span>
-              </h3>
-              {loadingVentasMes ? (
-                <div className="h-64 bg-gray-100 animate-pulse rounded-lg"></div>
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={ventasMes}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="dia" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
-                    <Tooltip
-                      formatter={(value) => [`$${value.toFixed(2)}`, "Total"]}
-                    />
-                    <Bar dataKey="total" fill="#bfdbfe" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+        {/* Gráficas de Ventas */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          {/* Ventas por Día */}
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+              <div className="w-3 h-3 bg-pink-400 rounded-full"></div>
+              <span>Ventas por Día</span>
+            </h3>
+            {loadingVentasMes ? (
+              <div className="h-48 bg-gray-100 animate-pulse rounded-lg"></div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart
+                  data={ventasMes}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis
+                    dataKey="dia"
+                    stroke="#9ca3af"
+                    style={{ fontSize: "12px" }}
+                  />
+                  <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
+                  <Tooltip
+                    formatter={(value) => [
+                      `$${Number(value).toFixed(2)}`,
+                      "Total",
+                    ]}
+                    contentStyle={{ fontSize: "12px" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#fbb6ce"
+                    strokeWidth={2}
+                    dot={{ fill: "#fbb6ce", r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
-          <div className="space-y-4">
-            {quickActions.map((action, index) => (
-              <button
-                key={index}
-                onClick={() => navigate(action.path)}
-                className={`${action.color} shadow-sm p-6 rounded-2xl transition-all duration-300 hover:scale-105 flex flex-col items-center space-y-3 text-center`}
-              >
-                <action.icon className="w-8 h-8" />
-                <span className="text-sm font-semibold">{action.title}</span>
-              </button>
-            ))}
+          {/* Ventas por Semana */}
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+              <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
+              <span>Ventas por Semana</span>
+            </h3>
+            {loadingVentasSemanas ? (
+              <div className="h-48 bg-gray-100 animate-pulse rounded-lg"></div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={ventasSemanas}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis
+                    dataKey="semana"
+                    stroke="#9ca3af"
+                    style={{ fontSize: "12px" }}
+                  />
+                  <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
+                  <Tooltip
+                    formatter={(value) => [
+                      `$${Number(value).toFixed(2)}`,
+                      "Total",
+                    ]}
+                    contentStyle={{ fontSize: "12px" }}
+                  />
+                  <Bar dataKey="total" fill="#ddd6fe" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Ventas por Mes */}
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+              <span>Ventas por Mes</span>
+            </h3>
+            {loadingVentasMeses ? (
+              <div className="h-48 bg-gray-100 animate-pulse rounded-lg"></div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={ventasMeses}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis
+                    dataKey="mes"
+                    stroke="#9ca3af"
+                    style={{ fontSize: "12px" }}
+                  />
+                  <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
+                  <Tooltip
+                    formatter={(value) => [`$${value.toFixed(2)}`, "Total"]}
+                    contentStyle={{ fontSize: "12px" }}
+                  />
+                  <Bar dataKey="total" fill="#bfdbfe" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
