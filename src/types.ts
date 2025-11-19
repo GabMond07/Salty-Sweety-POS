@@ -50,9 +50,11 @@ export interface VentaItem {
 export interface Cotizacion {
   id: number;
   created_at: string;
-  cliente_id: number;
+  cliente_id?: number; // Opcional: solo para personalizadas
+  tipo: "personalizada" | "estandar";
+  nombre_producto?: string; // Para cotizaciones estándar
   total: number;
-  valida_hasta: string;
+  valida_hasta?: string; // Opcional: solo para personalizadas
   estado: "pendiente" | "aceptada" | "rechazada";
   usuario_id?: string;
 }
@@ -82,6 +84,25 @@ export interface MovimientoInventario {
   cantidad: number;
   justificacion?: string;
   usuario_id?: string;
+}
+
+export interface Ingrediente {
+  id: number;
+  created_at: string;
+  nombre: string;
+  unidad_medida: string;
+  precio_unitario: number;
+  stock_actual: number;
+  activo: boolean;
+}
+
+export interface CotizacionIngrediente {
+  id: number;
+  cotizacion_id: number;
+  ingrediente_id: number;
+  cantidad: number;
+  precio_unitario: number;
+  notas?: string;
 }
 
 // Tipos para UI
