@@ -74,6 +74,7 @@ export default function Cotizaciones() {
   const [tipoCotizacion, setTipoCotizacion] = useState<
     "personalizada" | "estandar"
   >("personalizada");
+  const [searchCotizacion, setSearchCotizacion] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showDetalles, setShowDetalles] = useState(false);
   const [showIngredientesManager, setShowIngredientesManager] = useState(false);
@@ -104,7 +105,7 @@ export default function Cotizaciones() {
   const { data: cotizaciones, isLoading: loadingCotizaciones } = useQuery<
     CotizacionConDetalles[]
   >({
-    queryKey: ["cotizaciones", estadoFiltro],
+    queryKey: ["cotizaciones", estadoFiltro, searchCotizacion],
     queryFn: async () => {
       let query = supabase
         .from("cotizaciones")
@@ -117,7 +118,29 @@ export default function Cotizaciones() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      let filtered = data || [];
+      
+      // Filter by search term
+      if (searchCotizacion) {
+        const searchLower = searchCotizacion.toLowerCase();
+        filtered = filtered.filter((cot) => {
+          if (cot.tipo === "personalizada") {
+            return (
+              cot.id.toString().includes(searchLower) ||
+              cot.clientes?.nombre?.toLowerCase().includes(searchLower) ||
+              cot.clientes?.email?.toLowerCase().includes(searchLower)
+            );
+          } else {
+            return (
+              cot.id.toString().includes(searchLower) ||
+              cot.nombre_producto?.toLowerCase().includes(searchLower)
+            );
+          }
+        });
+      }
+      
+      return filtered;
     },
   });
 
@@ -641,10 +664,21 @@ export default function Cotizaciones() {
           </div>
         </div>
 
-        {/* Tipo de Cotización Tabs */}
+        {/* Search and Filters */}
         <div className="bg-white rounded-2xl shadow-sm p-4 lg:p-6 mb-6 border border-purple-50">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+          <div className="flex flex-col gap-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar cotización por ID, cliente o producto..."
+                value={searchCotizacion}
+                onChange={(e) => setSearchCotizacion(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
               <button
                 onClick={() => setTipoCotizacion("personalizada")}
                 className={`px-6 py-2 rounded-lg font-medium transition-all ${
@@ -666,16 +700,17 @@ export default function Cotizaciones() {
                 Estándar
               </button>
             </div>
-            <select
-              value={estadoFiltro}
-              onChange={(e) => setEstadoFiltro(e.target.value)}
-              className="px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none transition-all"
-            >
-              <option value="todos">Todos los estados</option>
-              <option value="pendiente">Pendientes</option>
-              <option value="aceptada">Aceptadas</option>
-              <option value="rechazada">Rechazadas</option>
-            </select>
+              <select
+                value={estadoFiltro}
+                onChange={(e) => setEstadoFiltro(e.target.value)}
+                className="px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+              >
+                <option value="todos">Todos los estados</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="aceptada">Aceptadas</option>
+                <option value="rechazada">Rechazadas</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -696,11 +731,16 @@ export default function Cotizaciones() {
                   className="bg-white rounded-2xl shadow-sm p-6 border border-purple-100 hover:shadow-md transition-all duration-200"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold text-gray-800">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-800 mb-1">
+                        {cotizacion.tipo === "personalizada"
+                          ? cotizacion.clientes?.nombre || "Cliente no especificado"
+                          : cotizacion.nombre_producto || "Producto no especificado"}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">
                           Cotización #{cotizacion.id}
-                        </h3>
+                        </span>
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
                             cotizacion.tipo === "personalizada"
@@ -713,15 +753,8 @@ export default function Cotizaciones() {
                             : "Estándar"}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">
-                        {cotizacion.tipo === "personalizada"
-                          ? cotizacion.clientes?.nombre ||
-                            "Cliente no especificado"
-                          : cotizacion.nombre_producto ||
-                            "Producto no especificado"}
-                      </p>
                     </div>
-                    {getEstadoBadge(cotizacion.estado)}
+                    {cotizacion.tipo === "personalizada" && getEstadoBadge(cotizacion.estado)}
                   </div>
 
                   <div className="space-y-2 mb-4">
@@ -1415,7 +1448,7 @@ export default function Cotizaciones() {
                   </>
                 )}
 
-                {selectedCotizacion.estado === "pendiente" && (
+                {selectedCotizacion.tipo === "personalizada" && selectedCotizacion.estado === "pendiente" && (
                   <div className="flex space-x-3">
                     <button
                       onClick={() =>
