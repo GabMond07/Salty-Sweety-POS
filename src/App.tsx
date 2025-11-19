@@ -8,6 +8,7 @@ import { useAuth } from "./hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Ventas from "./pages/Ventas";
+import Productos from "./pages/Productos";
 // ... otras imports
 
 function App() {
@@ -31,7 +32,11 @@ function App() {
             path="/ventas"
             element={user ? <Ventas /> : <Navigate to="/login" />}
           />
-          {/* Agrega más: /productos, /clientes, /cotizaciones, /notas, /inventario */}
+          <Route
+            path="/productos"
+            element={user ? <Productos /> : <Navigate to="/login" />}
+          />
+          {/* Agrega más: /clientes, /cotizaciones, /notas, /inventario */}
           <Route path="*" element={<Navigate to={user ? "/" : "/login"} />} />
         </Routes>
       </div>

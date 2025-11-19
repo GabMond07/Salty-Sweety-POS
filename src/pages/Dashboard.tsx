@@ -51,13 +51,14 @@ export default function Dashboard() {
   const { data: stockBajo, isLoading: loadingStockBajo } = useQuery<Product[]>({
     queryKey: ["stockBajo"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("productos")
-        .select("*")
-        .filter("stock_actual", "lte", "stock_minimo");
+      const { data, error } = await supabase.from("productos").select("*");
 
       if (error) throw error;
-      return data || [];
+
+      // Filtrar en el cliente productos con stock bajo
+      return (data || []).filter(
+        (producto) => producto.stock_actual <= producto.stock_minimo
+      );
     },
   });
 
