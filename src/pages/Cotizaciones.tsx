@@ -118,9 +118,9 @@ export default function Cotizaciones() {
 
       const { data, error } = await query;
       if (error) throw error;
-      
+
       let filtered = data || [];
-      
+
       // Filter by search term
       if (searchCotizacion) {
         const searchLower = searchCotizacion.toLowerCase();
@@ -139,7 +139,7 @@ export default function Cotizaciones() {
           }
         });
       }
-      
+
       return filtered;
     },
   });
@@ -679,27 +679,27 @@ export default function Cotizaciones() {
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
-              <button
-                onClick={() => setTipoCotizacion("personalizada")}
-                className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                  tipoCotizacion === "personalizada"
-                    ? "bg-gradient-to-r from-purple-200 to-pink-200 text-purple-800 shadow-sm"
-                    : "text-gray-600 hover:text-gray-800"
-                }`}
-              >
-                Personalizadas
-              </button>
-              <button
-                onClick={() => setTipoCotizacion("estandar")}
-                className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                  tipoCotizacion === "estandar"
-                    ? "bg-gradient-to-r from-blue-200 to-cyan-200 text-blue-800 shadow-sm"
-                    : "text-gray-600 hover:text-gray-800"
-                }`}
-              >
-                Estándar
-              </button>
-            </div>
+                <button
+                  onClick={() => setTipoCotizacion("personalizada")}
+                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                    tipoCotizacion === "personalizada"
+                      ? "bg-gradient-to-r from-purple-200 to-pink-200 text-purple-800 shadow-sm"
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  Personalizadas
+                </button>
+                <button
+                  onClick={() => setTipoCotizacion("estandar")}
+                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                    tipoCotizacion === "estandar"
+                      ? "bg-gradient-to-r from-blue-200 to-cyan-200 text-blue-800 shadow-sm"
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  Estándar
+                </button>
+              </div>
               <select
                 value={estadoFiltro}
                 onChange={(e) => setEstadoFiltro(e.target.value)}
@@ -734,8 +734,10 @@ export default function Cotizaciones() {
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-800 mb-1">
                         {cotizacion.tipo === "personalizada"
-                          ? cotizacion.clientes?.nombre || "Cliente no especificado"
-                          : cotizacion.nombre_producto || "Producto no especificado"}
+                          ? cotizacion.clientes?.nombre ||
+                            "Cliente no especificado"
+                          : cotizacion.nombre_producto ||
+                            "Producto no especificado"}
                       </h3>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-500">
@@ -754,7 +756,8 @@ export default function Cotizaciones() {
                         </span>
                       </div>
                     </div>
-                    {cotizacion.tipo === "personalizada" && getEstadoBadge(cotizacion.estado)}
+                    {cotizacion.tipo === "personalizada" &&
+                      getEstadoBadge(cotizacion.estado)}
                   </div>
 
                   <div className="space-y-2 mb-4">
@@ -1264,9 +1267,18 @@ export default function Cotizaciones() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Cotización #{selectedCotizacion.id}
-                </h2>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    {selectedCotizacion.tipo === "personalizada"
+                      ? selectedCotizacion.clientes?.nombre ||
+                        "Cliente no especificado"
+                      : selectedCotizacion.nombre_producto ||
+                        "Producto no especificado"}
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Cotización #{selectedCotizacion.id}
+                  </p>
+                </div>
                 <button
                   onClick={() => {
                     setShowDetalles(false);
@@ -1329,10 +1341,12 @@ export default function Cotizaciones() {
                         </p>
                       </div>
                     )}
-                  <div>
-                    <p className="text-sm text-gray-600">Estado</p>
-                    {getEstadoBadge(selectedCotizacion.estado)}
-                  </div>
+                  {selectedCotizacion.tipo === "personalizada" && (
+                    <div>
+                      <p className="text-sm text-gray-600">Estado</p>
+                      {getEstadoBadge(selectedCotizacion.estado)}
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-gray-600">Total</p>
                     <p className="text-2xl font-bold text-emerald-700">
@@ -1448,34 +1462,35 @@ export default function Cotizaciones() {
                   </>
                 )}
 
-                {selectedCotizacion.tipo === "personalizada" && selectedCotizacion.estado === "pendiente" && (
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() =>
-                        updateEstadoMutation.mutate({
-                          id: selectedCotizacion.id,
-                          estado: "aceptada",
-                        })
-                      }
-                      className="flex-1 bg-gradient-to-r from-emerald-200 to-emerald-300 hover:from-emerald-300 hover:to-emerald-400 text-emerald-800 px-6 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      <span>Aceptar</span>
-                    </button>
-                    <button
-                      onClick={() =>
-                        updateEstadoMutation.mutate({
-                          id: selectedCotizacion.id,
-                          estado: "rechazada",
-                        })
-                      }
-                      className="flex-1 bg-gradient-to-r from-red-200 to-red-300 hover:from-red-300 hover:to-red-400 text-red-700 px-6 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
-                    >
-                      <XCircle className="w-5 h-5" />
-                      <span>Rechazar</span>
-                    </button>
-                  </div>
-                )}
+                {selectedCotizacion.tipo === "personalizada" &&
+                  selectedCotizacion.estado === "pendiente" && (
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() =>
+                          updateEstadoMutation.mutate({
+                            id: selectedCotizacion.id,
+                            estado: "aceptada",
+                          })
+                        }
+                        className="flex-1 bg-gradient-to-r from-emerald-200 to-emerald-300 hover:from-emerald-300 hover:to-emerald-400 text-emerald-800 px-6 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                        <span>Aceptar</span>
+                      </button>
+                      <button
+                        onClick={() =>
+                          updateEstadoMutation.mutate({
+                            id: selectedCotizacion.id,
+                            estado: "rechazada",
+                          })
+                        }
+                        className="flex-1 bg-gradient-to-r from-red-200 to-red-300 hover:from-red-300 hover:to-red-400 text-red-700 px-6 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
+                      >
+                        <XCircle className="w-5 h-5" />
+                        <span>Rechazar</span>
+                      </button>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
