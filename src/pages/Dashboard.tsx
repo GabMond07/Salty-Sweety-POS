@@ -80,21 +80,24 @@ export default function Dashboard() {
       title: "Ventas Hoy",
       value: `$${(ventasHoy || 0).toFixed(2)}`,
       icon: DollarSign,
-      color: "bg-green-500",
+      color: "bg-emerald-200",
+      textColor: "text-emerald-800",
       loading: loadingVentasHoy,
     },
     {
       title: "Ventas del Mes",
       value: `$${(ventasMes || 0).toFixed(2)}`,
       icon: TrendingUp,
-      color: "bg-blue-500",
+      color: "bg-blue-200",
+      textColor: "text-blue-800",
       loading: loadingVentasMes,
     },
     {
       title: "Stock Bajo",
       value: `${stockBajo?.length || 0} productos`,
       icon: AlertTriangle,
-      color: "bg-red-500",
+      color: "bg-red-200",
+      textColor: "text-red-800",
       loading: loadingStockBajo,
       alert: (stockBajo?.length || 0) > 0,
     },
@@ -102,7 +105,8 @@ export default function Dashboard() {
       title: "Clientes Activos",
       value: clientesActivos || 0,
       icon: Users,
-      color: "bg-purple-500",
+      color: "bg-purple-200",
+      textColor: "text-purple-800",
       loading: loadingClientes,
     },
   ];
@@ -111,55 +115,62 @@ export default function Dashboard() {
     {
       title: "Nueva Venta",
       icon: ShoppingCart,
-      color: "bg-blue-600 hover:bg-blue-700",
+      color:
+        "bg-gradient-to-br from-pink-200 to-pink-300 hover:from-pink-300 hover:to-pink-400 text-pink-800 shadow-md",
       path: "/ventas",
     },
     {
       title: "Inventario",
       icon: Package,
-      color: "bg-green-600 hover:bg-green-700",
+      color:
+        "bg-gradient-to-br from-emerald-200 to-emerald-300 hover:from-emerald-300 hover:to-emerald-400 text-emerald-800 shadow-md",
       path: "/productos",
     },
     {
       title: "Clientes",
       icon: Users,
-      color: "bg-purple-600 hover:bg-purple-700",
+      color:
+        "bg-gradient-to-br from-purple-200 to-purple-300 hover:from-purple-300 hover:to-purple-400 text-purple-800 shadow-md",
       path: "/clientes",
     },
     {
       title: "Cotizaciones",
       icon: FileText,
-      color: "bg-orange-600 hover:bg-orange-700",
+      color:
+        "bg-gradient-to-br from-amber-200 to-amber-300 hover:from-amber-300 hover:to-amber-400 text-amber-800 shadow-md",
       path: "/cotizaciones",
     },
     {
       title: "Historial Ventas",
       icon: FileText,
-      color: "bg-teal-600 hover:bg-teal-700",
+      color:
+        "bg-gradient-to-br from-blue-200 to-blue-300 hover:from-blue-300 hover:to-blue-400 text-blue-800 shadow-md",
       path: "/historial-ventas",
     },
     {
       title: "Notas de Crédito",
       icon: FileText,
-      color: "bg-pink-600 hover:bg-pink-700",
+      color:
+        "bg-gradient-to-br from-pink-200 to-purple-200 hover:from-pink-300 hover:to-purple-300 text-purple-800 shadow-md",
       path: "/notas",
     },
     {
       title: "Almacén",
       icon: Archive,
-      color: "bg-indigo-600 hover:bg-indigo-700",
+      color:
+        "bg-gradient-to-br from-purple-200 to-blue-200 hover:from-purple-300 hover:to-blue-300 text-purple-800 shadow-md",
       path: "/almacen",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">
+      <div className="mb-8 bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 p-6 rounded-xl shadow-md">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">
           ¡Bienvenido a Salty & Sweety POS!
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-700 font-medium">
           Panel de control -{" "}
           {new Date().toLocaleDateString("es-MX", {
             weekday: "long",
@@ -175,25 +186,25 @@ export default function Dashboard() {
         {metrics.map((metric, index) => (
           <div
             key={index}
-            className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
-              metric.alert ? "border-red-500" : "border-transparent"
+            className={`bg-white rounded-xl shadow-lg p-6 border-l-4 hover:shadow-xl transition-shadow ${
+              metric.alert ? "border-red-200" : "border-transparent"
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">
+                <p className="text-sm font-semibold text-gray-600 mb-1">
                   {metric.title}
                 </p>
                 {metric.loading ? (
                   <div className="h-8 w-24 bg-gray-200 animate-pulse rounded"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-gray-800">
+                  <p className={`text-2xl font-bold ${metric.textColor}`}>
                     {metric.value}
                   </p>
                 )}
               </div>
-              <div className={`${metric.color} p-3 rounded-full`}>
-                <metric.icon className="w-6 h-6 text-white" />
+              <div className={`${metric.color} p-4 rounded-xl shadow-md`}>
+                <metric.icon className={`w-6 h-6 ${metric.textColor}`} />
               </div>
             </div>
           </div>
@@ -202,15 +213,16 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          Acciones Rápidas
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
+          <span>⚡</span>
+          <span>Acciones Rápidas</span>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {quickActions.map((action, index) => (
             <button
               key={index}
               onClick={() => navigate(action.path)}
-              className={`${action.color} text-white p-6 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center space-x-4`}
+              className={`${action.color} p-6 rounded-xl transition-all duration-200 transform hover:scale-105 flex items-center space-x-4`}
             >
               <action.icon className="w-8 h-8" />
               <span className="text-lg font-semibold">{action.title}</span>
@@ -221,28 +233,30 @@ export default function Dashboard() {
 
       {/* Stock Bajo Alert */}
       {stockBajo && stockBajo.length > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-red-50 to-amber-50 border-l-4 border-red-200 p-6 rounded-xl shadow-lg">
           <div className="flex items-start">
-            <AlertTriangle className="w-6 h-6 text-red-500 mr-3 mt-1" />
+            <div className="bg-red-200 p-3 rounded-xl mr-4">
+              <AlertTriangle className="w-6 h-6 text-red-800" />
+            </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold text-red-800 mb-2">
                 ⚠️ Alerta de Inventario
               </h3>
-              <p className="text-red-700 mb-3">
+              <p className="text-red-700 mb-3 font-medium">
                 Los siguientes productos tienen stock bajo o insuficiente:
               </p>
-              <div className="bg-white rounded p-4 max-h-48 overflow-y-auto">
+              <div className="bg-white rounded-lg p-4 max-h-48 overflow-y-auto shadow-inner">
                 <ul className="space-y-2">
                   {stockBajo.map((producto) => (
                     <li
                       key={producto.id}
-                      className="flex justify-between items-center text-sm border-b pb-2"
+                      className="flex justify-between items-center text-sm border-b border-gray-200 pb-2"
                     >
-                      <span className="font-medium text-gray-800">
+                      <span className="font-semibold text-gray-900">
                         {producto.nombre}
                       </span>
-                      <span className="text-red-600 font-bold">
-                        Stock: {producto.stock_actual} / Mínimo:{" "}
+                      <span className="text-red-800 font-bold bg-red-100 px-3 py-1 rounded-full text-xs">
+                        Stock: {producto.stock_actual} / Mín:{" "}
                         {producto.stock_minimo}
                       </span>
                     </li>
@@ -251,7 +265,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={() => navigate("/productos")}
-                className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+                className="mt-4 bg-gradient-to-r from-red-200 to-amber-200 hover:from-red-300 hover:to-amber-300 text-red-800 px-6 py-2 rounded-xl transition-all shadow-md font-semibold"
               >
                 Ir a Inventario
               </button>

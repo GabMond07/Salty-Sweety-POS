@@ -22,30 +22,32 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-100">
         {user && <Navbar />}
-        <Routes>
-          <Route
-            path="/login"
-            element={!user ? <Login /> : <Navigate to="/" />}
-          />
-          <Route
-            path="/"
-            element={user ? <Dashboard /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/ventas"
-            element={user ? <Ventas /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/productos"
-            element={user ? <Productos /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/historial-ventas"
-            element={user ? <HistorialVentas /> : <Navigate to="/login" />}
-          />
-          {/* Agrega más: /clientes, /cotizaciones, /notas, /inventario */}
-          <Route path="*" element={<Navigate to={user ? "/" : "/login"} />} />
-        </Routes>
+        <div className={user ? "pt-16" : ""}>
+          <Routes>
+            <Route
+              path="/login"
+              element={!user ? <Login /> : <Navigate to="/" />}
+            />
+            <Route
+              path="/"
+              element={user ? <Dashboard /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/ventas"
+              element={user ? <Ventas /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/productos"
+              element={user ? <Productos /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/historial-ventas"
+              element={user ? <HistorialVentas /> : <Navigate to="/login" />}
+            />
+            {/* Agrega más: /clientes, /cotizaciones, /notas, /inventario */}
+            <Route path="*" element={<Navigate to={user ? "/" : "/login"} />} />
+          </Routes>
+        </div>
       </div>
     </Router>
   );
