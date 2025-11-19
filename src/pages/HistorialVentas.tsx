@@ -238,33 +238,55 @@ export default function HistorialVentas() {
   const generarPDF = async () => {
     if (!ventas || ventas.length === 0 || !pdfPreviewRef.current) return;
 
-    const canvas = await html2canvas(pdfPreviewRef.current, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-    });
+    try {
+      const canvas = await html2canvas(pdfPreviewRef.current, {
+        scale: 2.5,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        width: pdfPreviewRef.current.scrollWidth,
+        height: pdfPreviewRef.current.scrollHeight,
+      });
 
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgWidth = 210;
-    const pageHeight = 295;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
+      const imgData = canvas.toDataURL("image/png", 0.95);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    let position = 0;
+      // Calcular dimensiones para ajustar a una sola página
+      const imgWidth = pdfWidth - 10; // Margen de 5mm a cada lado
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+      // Si la imagen es muy alta, ajustarla al alto de la página
+      let finalWidth = imgWidth;
+      let finalHeight = imgHeight;
 
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      if (imgHeight > pdfHeight - 10) {
+        finalHeight = pdfHeight - 10; // Margen de 5mm arriba y abajo
+        finalWidth = (canvas.width * finalHeight) / canvas.height;
+      }
+
+      // Centrar la imagen en la página
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = (pdfHeight - finalHeight) / 2;
+
+      pdf.addImage(
+        imgData,
+        "PNG",
+        xOffset,
+        yOffset,
+        finalWidth,
+        finalHeight,
+        undefined,
+        "FAST"
+      );
+
+      const fechaActual = new Date().toISOString().split("T")[0];
+      pdf.save(`reporte_ventas_${periodoFiltro}_${fechaActual}.pdf`);
+    } catch (error) {
+      console.error("Error generando PDF:", error);
+      alert("Ocurrió un error al generar el PDF. Por favor intenta de nuevo.");
     }
-
-    const fechaActual = new Date().toISOString().split("T")[0];
-    pdf.save(`reporte_ventas_${periodoFiltro}_${fechaActual}.pdf`);
   };
 
   const openPDFPreview = () => {
@@ -708,141 +730,271 @@ export default function HistorialVentas() {
         )}
 
         {showPDFPreview && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                <h2 className="text-2xl font-bold text-gray-800">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[95vh] flex flex-col">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-100 gap-3">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
                   Vista Previa PDF
                 </h2>
-                <div className="flex space-x-3">
+                <div className="flex space-x-2 sm:space-x-3 w-full sm:w-auto">
                   <button
                     onClick={generarPDF}
-                    className="bg-gradient-to-r from-emerald-200 to-pink-200 hover:from-emerald-300 hover:to-pink-300 text-emerald-700 px-6 py-3 rounded-xl flex items-center space-x-2 transition-all font-medium shadow-sm"
+                    className="bg-gradient-to-r from-emerald-200 to-pink-200 hover:from-emerald-300 hover:to-pink-300 text-emerald-700 px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center justify-center space-x-2 transition-all font-medium shadow-sm text-sm sm:text-base flex-1 sm:flex-none"
                   >
-                    <Download className="w-5 h-5" />
-                    <span>Descargar PDF</span>
+                    <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Descargar</span>
                   </button>
                   <button
                     onClick={() => setShowPDFPreview(false)}
                     className="text-gray-500 hover:text-gray-700 p-2 rounded-xl transition-colors"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                 </div>
               </div>
 
               <div
                 ref={pdfPreviewRef}
-                className="p-8 overflow-y-auto flex-grow print:p-0 print:m-0"
+                className="p-3 sm:p-6 overflow-y-auto flex-grow"
                 style={{
                   backgroundColor: "white",
                   fontFamily: "Arial, sans-serif",
+                  maxWidth: "190mm",
+                  margin: "0 auto",
                 }}
               >
-                <div className="max-w-4xl mx-auto">
-                  <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                <div className="w-full">
+                  {/* Header compacto */}
+                  <div className="text-center mb-4">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1">
                       Reporte de Ventas
                     </h1>
-                    <p className="text-gray-600">Salty & Sweety POS</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Periodo: {periodoFiltro} |{" "}
-                      {new Date().toLocaleDateString("es-MX")}
+                    <p className="text-sm sm:text-base text-gray-600 font-medium">
+                      Salty & Sweety POS
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {periodoFiltro.charAt(0).toUpperCase() +
+                        periodoFiltro.slice(1)}{" "}
+                      |{" "}
+                      {new Date().toLocaleDateString("es-MX", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl">
-                      <p className="text-sm text-gray-600">Total</p>
-                      <p className="text-2xl font-bold text-emerald-700">
+                  {/* Métricas en grid compacto */}
+                  <div className="grid grid-cols-4 gap-2 mb-4">
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-2 rounded-lg border border-emerald-200">
+                      <p className="text-[10px] sm:text-xs text-gray-600 font-medium">
+                        Total
+                      </p>
+                      <p className="text-sm sm:text-lg font-bold text-emerald-700">
                         ${totalVentas.toFixed(2)}
                       </p>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl">
-                      <p className="text-sm text-gray-600">Cantidad</p>
-                      <p className="text-2xl font-bold text-blue-700">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded-lg border border-blue-200">
+                      <p className="text-[10px] sm:text-xs text-gray-600 font-medium">
+                        Ventas
+                      </p>
+                      <p className="text-sm sm:text-lg font-bold text-blue-700">
                         {cantidadVentas}
                       </p>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl">
-                      <p className="text-sm text-gray-600">Promedio</p>
-                      <p className="text-2xl font-bold text-purple-700">
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded-lg border border-purple-200">
+                      <p className="text-[10px] sm:text-xs text-gray-600 font-medium">
+                        Promedio
+                      </p>
+                      <p className="text-sm sm:text-lg font-bold text-purple-700">
                         ${promedioVenta.toFixed(2)}
                       </p>
                     </div>
-                    <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-xl">
-                      <p className="text-sm text-gray-600">Métodos</p>
-                      <p className="text-sm font-medium text-gray-800">
-                        E: {ventasEfectivo} | T: {ventasTarjeta}
+                    <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-2 rounded-lg border border-pink-200">
+                      <p className="text-[10px] sm:text-xs text-gray-600 font-medium">
+                        Efectivo/Tarjeta
+                      </p>
+                      <p className="text-[10px] sm:text-xs font-semibold text-gray-800">
+                        {ventasEfectivo} / {ventasTarjeta}
                       </p>
                     </div>
                   </div>
 
-                  <div className="border border-gray-200 rounded-xl overflow-hidden mb-8">
-                    <table className="w-full">
+                  {/* Tabla optimizada */}
+                  <div className="border border-gray-300 rounded-lg overflow-hidden mb-3">
+                    <table className="w-full border-collapse text-xs">
                       <thead className="bg-gradient-to-r from-pink-100 to-purple-100">
                         <tr>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                          <th className="px-2 py-1.5 text-left text-[10px] font-bold text-gray-700 border-b border-gray-300">
                             ID
                           </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                            Fecha
+                          <th className="px-2 py-1.5 text-left text-[10px] font-bold text-gray-700 border-b border-gray-300">
+                            Fecha/Hora
                           </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                          <th className="px-2 py-1.5 text-left text-[10px] font-bold text-gray-700 border-b border-gray-300">
                             Cliente
                           </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                          <th className="px-2 py-1.5 text-left text-[10px] font-bold text-gray-700 border-b border-gray-300">
                             Total
                           </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                          <th className="px-2 py-1.5 text-left text-[10px] font-bold text-gray-700 border-b border-gray-300">
                             Pago
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {ventas.map((venta) => (
+                      <tbody>
+                        {ventas.slice(0, 15).map((venta, index) => (
                           <tr
                             key={venta.id}
-                            className="hover:bg-gray-50 transition-colors"
+                            className={
+                              index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                            }
                           >
-                            <td className="px-6 py-4 text-sm font-medium text-gray-800">
+                            <td className="px-2 py-1 text-[10px] font-bold text-gray-800 border-b border-gray-200">
                               #{venta.id}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
+                            <td className="px-2 py-1 text-[9px] text-gray-700 border-b border-gray-200">
                               {new Date(venta.created_at).toLocaleDateString(
-                                "es-MX"
+                                "es-MX",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "2-digit",
+                                }
+                              )}{" "}
+                              {new Date(venta.created_at).toLocaleTimeString(
+                                "es-MX",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
+                            <td className="px-2 py-1 text-[10px] text-gray-700 font-medium border-b border-gray-200">
                               {(venta as any).clientes?.nombre || "General"}
                             </td>
-                            <td className="px-6 py-4 text-sm font-semibold text-emerald-700">
+                            <td className="px-2 py-1 text-[10px] font-bold text-emerald-700 border-b border-gray-200">
                               ${venta.total.toFixed(2)}
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-2 py-1 border-b border-gray-200">
                               <span
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
                                   venta.metodo_pago === "efectivo"
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : "bg-blue-100 text-blue-700"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-blue-100 text-blue-800"
                                 }`}
                               >
-                                {venta.metodo_pago.charAt(0).toUpperCase() +
-                                  venta.metodo_pago.slice(1)}
+                                {venta.metodo_pago === "efectivo" ? "💵" : "💳"}
                               </span>
                             </td>
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot className="bg-gradient-to-r from-pink-50 to-purple-50">
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="px-2 py-1.5 text-[10px] font-bold text-gray-700 text-right border-t-2 border-gray-300"
+                          >
+                            TOTAL:
+                          </td>
+                          <td className="px-2 py-1.5 text-xs font-bold text-emerald-700 border-t-2 border-gray-300">
+                            ${totalVentas.toFixed(2)}
+                          </td>
+                          <td className="px-2 py-1.5 text-[10px] font-semibold text-gray-600 border-t-2 border-gray-300">
+                            {cantidadVentas} ventas
+                          </td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
 
-                  <div className="text-center text-xs text-gray-500 mt-8">
+                  {/* Resumen en dos columnas compacto */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 p-2 rounded-lg border border-emerald-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-gray-600 font-medium">
+                          Total Efectivo:
+                        </span>
+                        <span className="text-xs font-bold text-emerald-700">
+                          $
+                          {ventas
+                            .filter((v) => v.metodo_pago === "efectivo")
+                            .reduce((sum, v) => sum + v.total, 0)
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-2 rounded-lg border border-blue-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-gray-600 font-medium">
+                          Total Tarjeta:
+                        </span>
+                        <span className="text-xs font-bold text-blue-700">
+                          $
+                          {ventas
+                            .filter((v) => v.metodo_pago === "tarjeta")
+                            .reduce((sum, v) => sum + v.total, 0)
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-2 rounded-lg border border-purple-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-gray-600 font-medium">
+                          Venta Más Alta:
+                        </span>
+                        <span className="text-xs font-bold text-purple-700">
+                          $
+                          {ventas.length > 0
+                            ? Math.max(...ventas.map((v) => v.total)).toFixed(2)
+                            : "0.00"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-pink-50 to-pink-100 p-2 rounded-lg border border-pink-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-gray-600 font-medium">
+                          Venta Más Baja:
+                        </span>
+                        <span className="text-xs font-bold text-pink-700">
+                          $
+                          {ventas.length > 0
+                            ? Math.min(...ventas.map((v) => v.total)).toFixed(2)
+                            : "0.00"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer compacto */}
+                  <div className="text-center text-[9px] text-gray-500 pt-2 border-t border-gray-300">
+                    <p className="font-medium">
+                      📊 Reporte generado por Salty & Sweety POS
+                    </p>
                     <p>
-                      Generado por Salty & Sweety POS el{" "}
-                      {new Date().toLocaleDateString("es-MX")}
+                      {new Date().toLocaleDateString("es-MX", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}{" "}
+                      -{" "}
+                      {new Date().toLocaleTimeString("es-MX", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
+
+                  {/* Nota si hay más de 15 ventas */}
+                  {ventas.length > 15 && (
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-[9px] text-amber-800 text-center font-medium">
+                        ⚠️ Mostrando las primeras 15 de {ventas.length} ventas.
+                        Exporta a CSV para ver todas.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -2,13 +2,14 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { LogIn, AlertCircle } from "lucide-react";
+import { LogIn, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -30,31 +31,35 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-4 sm:p-8">
         {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full mb-4">
-            <LogIn className="w-8 h-8 text-white" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl mb-3 sm:mb-4 shadow-sm mx-auto">
+            <LogIn className="w-7 h-7 sm:w-9 sm:h-9 text-purple-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
             Salty & Sweety POS
           </h1>
-          <p className="text-gray-600">Inicia sesión para continuar</p>
+          <p className="text-gray-600 font-medium text-sm sm:text-base">
+            Bienvenido de vuelta
+          </p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+          <div className="bg-red-50 border-l-4 border-red-100 p-3 sm:p-4 mb-4 sm:mb-6 rounded-xl">
             <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-              <p className="text-sm text-red-700">{error}</p>
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mr-2 flex-shrink-0" />
+              <p className="text-sm text-red-700 flex-1 overflow-hidden">
+                {error}
+              </p>
             </div>
           </div>
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <div>
             <label
               htmlFor="email"
@@ -69,7 +74,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="tu@email.com"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              className="w-full px-3 sm:px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-transparent outline-none transition-all bg-white/50 hover:bg-white text-sm"
               disabled={loading}
             />
           </div>
@@ -81,58 +86,74 @@ export default function Login() {
             >
               Contraseña
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-              disabled={loading}
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full pr-10 pl-3 sm:pl-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-transparent outline-none transition-all bg-white/50 hover:bg-white text-sm pr-10"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                ) : (
+                  <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs sm:text-sm pt-2">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300 text-purple-600 focus:ring-purple-200 w-4 h-4 sm:w-5 sm:h-5"
+              />
+              <span className="ml-2 text-gray-600 select-none">Recordarme</span>
+            </label>
+            <a
+              href="#"
+              className="text-purple-600 hover:text-purple-700 font-medium transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full bg-gradient-to-r from-purple-200 via-pink-200 to-blue-200 hover:from-purple-300 hover:via-pink-300 hover:to-blue-300 text-purple-700 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md"
           >
             {loading ? (
-              <span className="flex items-center justify-center">
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Iniciando sesión...
-              </span>
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-purple-700"></div>
+                <span className="text-sm sm:text-base">Iniciando...</span>
+              </>
             ) : (
-              "Iniciar Sesión"
+              <>
+                <LogIn className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Iniciar Sesión</span>
+              </>
             )}
           </button>
         </form>
 
         {/* Footer */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">Sistema de punto de venta</p>
-          <p className="text-xs text-gray-500 mt-2">
-            © 2025 Salty & Sweety. Todos los derechos reservados.
+        <div className="mt-6 sm:mt-8 text-center pt-4 sm:pt-6 border-t border-gray-100">
+          <p className="text-xs sm:text-sm text-gray-600">
+            Sistema de punto de venta
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            © {new Date().getFullYear()} Salty & Sweety. Todos los derechos
+            reservados.
           </p>
         </div>
       </div>

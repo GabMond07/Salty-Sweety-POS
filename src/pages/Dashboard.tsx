@@ -40,6 +40,8 @@ export default function Dashboard() {
       if (error) throw error;
       return data?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
     },
+    refetchInterval: 5000, // Actualizar cada 5 segundos
+    refetchOnWindowFocus: true,
   });
 
   // Query para ventas de ayer (para calcular cambio)
@@ -58,6 +60,7 @@ export default function Dashboard() {
       if (error) throw error;
       return data?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
     },
+    refetchInterval: 10000, // Actualizar cada 10 segundos
   });
 
   const { data: ventasMes, isLoading: loadingVentasMes } = useQuery({
@@ -84,6 +87,8 @@ export default function Dashboard() {
         total,
       }));
     },
+    refetchInterval: 5000, // Actualizar cada 5 segundos
+    refetchOnWindowFocus: true,
   });
 
   // Query para ventas de las últimas 4 semanas
@@ -119,6 +124,8 @@ export default function Dashboard() {
         total: semanas[sem] || 0,
       }));
     },
+    refetchInterval: 10000, // Actualizar cada 10 segundos
+    refetchOnWindowFocus: true,
   });
 
   // Query para ventas de los últimos 6 meses
@@ -172,6 +179,8 @@ export default function Dashboard() {
 
       return result;
     },
+    refetchInterval: 15000, // Actualizar cada 15 segundos
+    refetchOnWindowFocus: true,
   });
 
   // Query para ventas del mes anterior (para calcular cambio)
@@ -194,6 +203,7 @@ export default function Dashboard() {
       if (error) throw error;
       return data?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
     },
+    refetchInterval: 15000, // Actualizar cada 15 segundos
   });
 
   const { data: stockBajo, isLoading: loadingStockBajo } = useQuery<Product[]>({
@@ -207,6 +217,8 @@ export default function Dashboard() {
         (producto) => producto.stock_actual <= producto.stock_minimo
       );
     },
+    refetchInterval: 10000, // Actualizar cada 10 segundos
+    refetchOnWindowFocus: true,
   });
 
   const { data: clientesActivos, isLoading: loadingClientes } = useQuery({
@@ -219,6 +231,8 @@ export default function Dashboard() {
       if (error) throw error;
       return count || 0;
     },
+    refetchInterval: 20000, // Actualizar cada 20 segundos
+    refetchOnWindowFocus: true,
   });
 
   // Funciones para calcular cambios
@@ -428,7 +442,17 @@ export default function Dashboard() {
                       `$${Number(value).toFixed(2)}`,
                       "Total",
                     ]}
-                    contentStyle={{ fontSize: "12px" }}
+                    contentStyle={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      backgroundColor: "#1f2937",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "12px",
+                      padding: "10px 14px",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                    }}
+                    labelStyle={{ color: "#f3f4f6", fontWeight: "500" }}
                   />
                   <Line
                     type="monotone"
@@ -468,7 +492,17 @@ export default function Dashboard() {
                       `$${Number(value).toFixed(2)}`,
                       "Total",
                     ]}
-                    contentStyle={{ fontSize: "12px" }}
+                    contentStyle={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      backgroundColor: "#1f2937",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "12px",
+                      padding: "10px 14px",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                    }}
+                    labelStyle={{ color: "#f3f4f6", fontWeight: "500" }}
                   />
                   <Bar dataKey="total" fill="#ddd6fe" radius={[8, 8, 0, 0]} />
                 </BarChart>
@@ -499,7 +533,17 @@ export default function Dashboard() {
                   <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
                   <Tooltip
                     formatter={(value) => [`$${value.toFixed(2)}`, "Total"]}
-                    contentStyle={{ fontSize: "12px" }}
+                    contentStyle={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      backgroundColor: "#1f2937",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "12px",
+                      padding: "10px 14px",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                    }}
+                    labelStyle={{ color: "#f3f4f6", fontWeight: "500" }}
                   />
                   <Bar dataKey="total" fill="#bfdbfe" radius={[8, 8, 0, 0]} />
                 </BarChart>

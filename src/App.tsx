@@ -11,7 +11,8 @@ import Login from "./pages/Login";
 import Ventas from "./pages/Ventas";
 import Productos from "./pages/Productos";
 import HistorialVentas from "./pages/HistorialVentas";
-// ... otras imports
+import Clientes from "./pages/Clientes";
+import Cotizaciones from "./pages/Cotizaciones";
 
 function App() {
   const { user, loading } = useAuth();
@@ -44,7 +45,15 @@ function App() {
               path="/historial-ventas"
               element={user ? <HistorialVentas /> : <Navigate to="/login" />}
             />
-            {/* Agrega más: /clientes, /cotizaciones, /notas, /inventario */}
+            <Route
+              path="/clientes"
+              element={user ? <Clientes /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/cotizaciones"
+              element={user ? <Cotizaciones /> : <Navigate to="/login" />}
+            />
+            {/* Agrega más: /notas, /inventario */}
             <Route path="*" element={<Navigate to={user ? "/" : "/login"} />} />
           </Routes>
         </div>

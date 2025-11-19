@@ -9,6 +9,7 @@ import {
   LogOut,
   Menu,
   X,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,6 +30,7 @@ export default function Navbar() {
     { path: "/productos", label: "Productos", icon: Package },
     { path: "/historial-ventas", label: "Historial", icon: History },
     { path: "/clientes", label: "Clientes", icon: Users },
+    { path: "/cotizaciones", label: "Cotizaciones", icon: FileText },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -46,14 +48,12 @@ export default function Navbar() {
               alt="Salty & Sweety Logo"
               className="w-14 h-14 object-contain rounded-lg"
             />
-            <div className="hidden md:block">
-              <h1 className="text-2xl font-bold text-gray-800">
-                Salty & Sweety
-              </h1>
+            {/* <div className="hidden md:block">
+              <h1 className="text-xl font-bold text-gray-800">S&S</h1>
               <p className="text-sm text-purple-500 font-medium">
                 Point of Sale
               </p>
-            </div>
+            </div> */}
           </Link>
 
           {/* Desktop Navigation */}
