@@ -22,7 +22,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  Legend,
 } from "recharts";
 
 export default function Dashboard() {
@@ -76,7 +75,7 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      const dias = {};
+      const dias: Record<number, number> = {};
       data?.forEach((v) => {
         const dia = new Date(v.created_at).getDate();
         dias[dia] = (dias[dia] || 0) + (v.total || 0);
@@ -107,7 +106,7 @@ export default function Dashboard() {
       if (error) throw error;
 
       // Agrupar por semana
-      const semanas = {};
+      const semanas: Record<number, number> = {};
       data?.forEach((v) => {
         const fecha = new Date(v.created_at);
         const diff = Math.floor(
@@ -144,7 +143,7 @@ export default function Dashboard() {
       if (error) throw error;
 
       // Agrupar por mes
-      const meses = {};
+      const meses: Record<string, number> = {};
       const mesesNombres = [
         "Ene",
         "Feb",
@@ -243,7 +242,8 @@ export default function Dashboard() {
     return `${signo}${porcentaje.toFixed(1)}%`;
   };
 
-  const totalVentasMes = ventasMes?.reduce((sum, d) => sum + d.total, 0) || 0;
+  const totalVentasMes =
+    ventasMes?.reduce((sum, d) => sum + (d.total as number), 0) || 0;
   const cambioVentasHoy = calcularCambio(ventasHoy || 0, ventasAyer || 0);
   const cambioVentasMes = calcularCambio(
     totalVentasMes,
@@ -532,7 +532,12 @@ export default function Dashboard() {
                   />
                   <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
                   <Tooltip
-                    formatter={(value) => [`$${value.toFixed(2)}`, "Total"]}
+                    formatter={(value) => [
+                      `$${
+                        typeof value === "number" ? value.toFixed(2) : value
+                      }`,
+                      "Total",
+                    ]}
                     contentStyle={{
                       fontSize: "14px",
                       fontWeight: "600",

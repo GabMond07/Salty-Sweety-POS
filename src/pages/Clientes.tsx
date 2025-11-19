@@ -4,7 +4,6 @@ import { supabase } from "../lib/supabase";
 import type { Cliente } from "../types";
 import {
   Users,
-  Plus,
   Search,
   Mail,
   Phone,

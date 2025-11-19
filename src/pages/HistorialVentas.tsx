@@ -5,7 +5,6 @@ import type { Venta, VentaItem, Product, Cliente } from "../types";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
-  Calendar,
   DollarSign,
   FileText,
   TrendingUp,
@@ -13,10 +12,8 @@ import {
   XCircle,
   Download,
   Filter,
-  Search,
   CreditCard,
   Banknote,
-  User,
   FileDown,
   X,
   Package,
@@ -843,7 +840,7 @@ export default function HistorialVentas() {
                         </tr>
                       </thead>
                       <tbody>
-                        {ventas.slice(0, 15).map((venta, index) => (
+                        {ventas?.slice(0, 15).map((venta, index) => (
                           <tr
                             key={venta.id}
                             className={
@@ -918,7 +915,7 @@ export default function HistorialVentas() {
                         </span>
                         <span className="text-xs font-bold text-emerald-700">
                           $
-                          {ventas
+                          {(ventas || [])
                             .filter((v) => v.metodo_pago === "efectivo")
                             .reduce((sum, v) => sum + v.total, 0)
                             .toFixed(2)}
@@ -932,7 +929,7 @@ export default function HistorialVentas() {
                         </span>
                         <span className="text-xs font-bold text-blue-700">
                           $
-                          {ventas
+                          {(ventas || [])
                             .filter((v) => v.metodo_pago === "tarjeta")
                             .reduce((sum, v) => sum + v.total, 0)
                             .toFixed(2)}
@@ -946,7 +943,7 @@ export default function HistorialVentas() {
                         </span>
                         <span className="text-xs font-bold text-purple-700">
                           $
-                          {ventas.length > 0
+                          {ventas && ventas.length > 0
                             ? Math.max(...ventas.map((v) => v.total)).toFixed(2)
                             : "0.00"}
                         </span>
@@ -959,7 +956,7 @@ export default function HistorialVentas() {
                         </span>
                         <span className="text-xs font-bold text-pink-700">
                           $
-                          {ventas.length > 0
+                          {ventas && ventas.length > 0
                             ? Math.min(...ventas.map((v) => v.total)).toFixed(2)
                             : "0.00"}
                         </span>
@@ -987,7 +984,7 @@ export default function HistorialVentas() {
                   </div>
 
                   {/* Nota si hay más de 15 ventas */}
-                  {ventas.length > 15 && (
+                  {ventas && ventas.length > 15 && (
                     <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-[9px] text-amber-800 text-center font-medium">
                         ⚠️ Mostrando las primeras 15 de {ventas.length} ventas.
