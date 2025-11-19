@@ -5,10 +5,12 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Ventas from "./pages/Ventas";
 import Productos from "./pages/Productos";
+import HistorialVentas from "./pages/HistorialVentas";
 // ... otras imports
 
 function App() {
@@ -19,6 +21,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">
+        {user && <Navbar />}
         <Routes>
           <Route
             path="/login"
@@ -35,6 +38,10 @@ function App() {
           <Route
             path="/productos"
             element={user ? <Productos /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/historial-ventas"
+            element={user ? <HistorialVentas /> : <Navigate to="/login" />}
           />
           {/* Agrega más: /clientes, /cotizaciones, /notas, /inventario */}
           <Route path="*" element={<Navigate to={user ? "/" : "/login"} />} />

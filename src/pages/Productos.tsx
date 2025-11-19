@@ -55,7 +55,11 @@ export default function Productos() {
     stock_minimo: 0,
     sku: "",
     categoria_id: null as number | null,
+    imagen_url: "",
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Query para productos
   const { data: productos, isLoading: loadingProductos } = useQuery<Product[]>({
@@ -95,9 +99,15 @@ export default function Productos() {
   // Mutation para crear producto
   const createProductMutation = useMutation({
     mutationFn: async (newProduct: typeof formData) => {
+      // Subir imagen si hay archivo seleccionado
+      let imagenUrl = newProduct.imagen_url;
+      if (selectedFile) {
+        imagenUrl = await uploadImage(selectedFile);
+      }
+
       const { data, error } = await supabase
         .from("productos")
-        .insert([newProduct])
+        .insert([{ ...newProduct, imagen_url: imagenUrl }])
         .select()
         .single();
 
@@ -127,6 +137,12 @@ export default function Productos() {
     mutationFn: async (updatedProduct: typeof formData & { id: number }) => {
       const { id, ...updateData } = updatedProduct;
 
+      // Subir nueva imagen si hay archivo seleccionado
+      let imagenUrl = updateData.imagen_url;
+      if (selectedFile) {
+        imagenUrl = await uploadImage(selectedFile);
+      }
+
       // Obtener stock anterior
       const { data: oldProduct } = await supabase
         .from("productos")
@@ -136,7 +152,7 @@ export default function Productos() {
 
       const { data, error } = await supabase
         .from("productos")
-        .update(updateData)
+        .update({ ...updateData, imagen_url: imagenUrl })
         .eq("id", id)
         .select()
         .single();
@@ -166,8 +182,23 @@ export default function Productos() {
   // Mutation para eliminar producto
   const deleteProductMutation = useMutation({
     mutationFn: async (id: number) => {
+      // Primero eliminar los movimientos de inventario asociados
+      await supabase
+        .from("movimientos_inventario")
+        .delete()
+        .eq("producto_id", id);
+
+      // Luego intentar eliminar el producto
       const { error } = await supabase.from("productos").delete().eq("id", id);
-      if (error) throw error;
+      if (error) {
+        // Si hay error por relaciones con ventas, informar al usuario
+        if (error.code === "23503") {
+          throw new Error(
+            "No se puede eliminar el producto porque tiene ventas asociadas"
+          );
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["productos"] });
@@ -175,7 +206,72 @@ export default function Productos() {
       setShowDeleteConfirm(false);
       setProductToDelete(null);
     },
+    onError: (error: any) => {
+      alert(error.message || "Error al eliminar el producto");
+    },
   });
+
+  // Función para generar SKU aleatorio
+  const generateSKU = () => {
+    const prefix = "SKU";
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}-${timestamp}-${random}`;
+  };
+
+  // Función para manejar selección de archivo
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tipo de archivo
+      if (!file.type.startsWith("image/")) {
+        alert("Por favor selecciona un archivo de imagen válido");
+        return;
+      }
+      // Validar tamaño (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert("La imagen no debe superar los 2MB");
+        return;
+      }
+      setSelectedFile(file);
+      // Crear preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Función para subir imagen a Supabase Storage
+  const uploadImage = async (file: File): Promise<string> => {
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(7)}.${fileExt}`;
+      const filePath = `productos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("productos-imagenes")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Obtener URL pública
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("productos-imagenes").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Error al subir imagen:", error);
+      throw error;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const openAddModal = () => {
     setFormData({
@@ -185,9 +281,12 @@ export default function Productos() {
       precio_costo: 0,
       stock_actual: 0,
       stock_minimo: 0,
-      sku: "",
+      sku: generateSKU(), // SKU generado automáticamente
       categoria_id: null,
+      imagen_url: "",
     });
+    setSelectedFile(null);
+    setImagePreview("");
     setModalMode("add");
   };
 
@@ -202,13 +301,18 @@ export default function Productos() {
       stock_minimo: product.stock_minimo,
       sku: product.sku || "",
       categoria_id: product.categoria_id || null,
+      imagen_url: product.imagen_url || "",
     });
+    setSelectedFile(null);
+    setImagePreview(product.imagen_url || "");
     setModalMode("edit");
   };
 
   const closeModal = () => {
     setModalMode(null);
     setSelectedProduct(null);
+    setSelectedFile(null);
+    setImagePreview("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -448,6 +552,9 @@ export default function Productos() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Imagen
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Producto
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -480,6 +587,19 @@ export default function Productos() {
                         : ""
                     }`}
                   >
+                    <td className="px-6 py-4">
+                      {producto.imagen_url ? (
+                        <img
+                          src={producto.imagen_url}
+                          alt={producto.nombre}
+                          className="w-16 h-16 object-cover rounded-lg"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <Package className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-medium text-gray-900">
@@ -600,18 +720,72 @@ export default function Productos() {
                   />
                 </div>
 
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Imagen del Producto
+                  </label>
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Formatos: JPG, PNG, GIF. Tamaño máximo: 2MB
+                      </p>
+                    </div>
+                    {imagePreview && (
+                      <div className="relative w-24 h-24 border-2 border-gray-200 rounded-lg overflow-hidden">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFile(null);
+                            setImagePreview("");
+                            setFormData({ ...formData, imagen_url: "" });
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    SKU
+                    SKU {modalMode === "add" && "(generado automáticamente)"}
                   </label>
-                  <input
-                    type="text"
-                    value={formData.sku}
-                    onChange={(e) =>
-                      setFormData({ ...formData, sku: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.sku}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sku: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                      readOnly={modalMode === "add"}
+                    />
+                    {modalMode === "add" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({ ...formData, sku: generateSKU() })
+                        }
+                        className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors text-sm font-medium"
+                        title="Generar nuevo SKU"
+                      >
+                        ↻
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -730,14 +904,17 @@ export default function Productos() {
                   type="submit"
                   disabled={
                     createProductMutation.isPending ||
-                    updateProductMutation.isPending
+                    updateProductMutation.isPending ||
+                    uploadingImage
                   }
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 transition-colors"
                 >
                   <Save className="w-5 h-5" />
                   <span>
-                    {createProductMutation.isPending ||
-                    updateProductMutation.isPending
+                    {uploadingImage
+                      ? "Subiendo imagen..."
+                      : createProductMutation.isPending ||
+                        updateProductMutation.isPending
                       ? "Guardando..."
                       : "Guardar"}
                   </span>

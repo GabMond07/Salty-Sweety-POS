@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import type { Product, DashboardMetrics } from "../types";
+import type { Product } from "../types";
 import {
   DollarSign,
   Package,
@@ -131,6 +131,12 @@ export default function Dashboard() {
       icon: FileText,
       color: "bg-orange-600 hover:bg-orange-700",
       path: "/cotizaciones",
+    },
+    {
+      title: "Historial Ventas",
+      icon: FileText,
+      color: "bg-teal-600 hover:bg-teal-700",
+      path: "/historial-ventas",
     },
     {
       title: "Notas de Crédito",

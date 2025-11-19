@@ -231,6 +231,13 @@ export default function Ventas() {
                     onClick={() => addToCart(producto)}
                     className="bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 p-4 rounded-lg border border-blue-200 transition-all transform hover:scale-105 text-left"
                   >
+                    {producto.imagen_url && (
+                      <img
+                        src={producto.imagen_url}
+                        alt={producto.nombre}
+                        className="w-full h-24 object-cover rounded-lg mb-2"
+                      />
+                    )}
                     <h3 className="font-semibold text-gray-800 mb-1 truncate">
                       {producto.nombre}
                     </h3>

@@ -18,6 +18,7 @@ export interface Product {
   stock_minimo: number;
   sku?: string;
   categoria_id?: number;
+  imagen_url?: string;
 }
 
 export interface Cliente {
