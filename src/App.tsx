@@ -7,7 +7,7 @@ import {
 import { useAuth } from "./hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-// import Ventas from './pages/Ventas';
+import Ventas from "./pages/Ventas";
 // ... otras imports
 
 function App() {
@@ -27,7 +27,10 @@ function App() {
             path="/"
             element={user ? <Dashboard /> : <Navigate to="/login" />}
           />
-          {/* <Route path="/ventas" element={<Ventas />} /> */}
+          <Route
+            path="/ventas"
+            element={user ? <Ventas /> : <Navigate to="/login" />}
+          />
           {/* Agrega más: /productos, /clientes, /cotizaciones, /notas, /inventario */}
           <Route path="*" element={<Navigate to={user ? "/" : "/login"} />} />
         </Routes>

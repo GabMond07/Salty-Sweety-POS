@@ -24,8 +24,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("ventas")
         .select("total")
-        .gte("created_at", today)
-        .eq("status", "completada");
+        .gte("created_at", today);
 
       if (error) throw error;
       return data?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
@@ -41,8 +40,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("ventas")
         .select("total")
-        .gte("created_at", firstDayOfMonth.toISOString())
-        .eq("status", "completada");
+        .gte("created_at", firstDayOfMonth.toISOString());
 
       if (error) throw error;
       return data?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
@@ -56,7 +54,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("productos")
         .select("*")
-        .lte("stock_actual", supabase.raw("stock_minimo"));
+        .filter("stock_actual", "lte", "stock_minimo");
 
       if (error) throw error;
       return data || [];
