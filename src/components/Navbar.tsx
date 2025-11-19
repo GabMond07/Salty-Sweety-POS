@@ -44,7 +44,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-4">
             <img
-              src="/logo.jpg"
+              src="/logo.png"
               alt="Salty & Sweety Logo"
               className="w-14 h-14 object-contain rounded-lg"
             />
