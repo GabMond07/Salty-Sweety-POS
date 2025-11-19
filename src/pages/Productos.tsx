@@ -30,7 +30,6 @@ export default function Productos() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  // Estados para gestión de categorías
   const [categoriaModalMode, setCategoriaModalMode] =
     useState<CategoriaModalMode>(null);
   const [selectedCategoriaMod, setSelectedCategoriaMod] =
@@ -45,7 +44,6 @@ export default function Productos() {
     null
   );
 
-  // Form state
   const [formData, setFormData] = useState({
     nombre: "",
     descripcion: "",
@@ -61,7 +59,6 @@ export default function Productos() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Query para productos
   const { data: productos, isLoading: loadingProductos } = useQuery<Product[]>({
     queryKey: ["productos", searchTerm, selectedCategoria],
     queryFn: async () => {
@@ -83,7 +80,6 @@ export default function Productos() {
     },
   });
 
-  // Query para categorías
   const { data: categorias } = useQuery<Categoria[]>({
     queryKey: ["categorias"],
     queryFn: async () => {
@@ -96,10 +92,8 @@ export default function Productos() {
     },
   });
 
-  // Mutation para crear producto
   const createProductMutation = useMutation({
     mutationFn: async (newProduct: typeof formData) => {
-      // Subir imagen si hay archivo seleccionado
       let imagenUrl = newProduct.imagen_url;
       if (selectedFile) {
         imagenUrl = await uploadImage(selectedFile);
@@ -113,7 +107,6 @@ export default function Productos() {
 
       if (error) throw error;
 
-      // Registrar movimiento de inventario inicial
       if (newProduct.stock_actual > 0) {
         await supabase.from("movimientos_inventario").insert({
           producto_id: data.id,
@@ -132,18 +125,15 @@ export default function Productos() {
     },
   });
 
-  // Mutation para actualizar producto
   const updateProductMutation = useMutation({
     mutationFn: async (updatedProduct: typeof formData & { id: number }) => {
       const { id, ...updateData } = updatedProduct;
 
-      // Subir nueva imagen si hay archivo seleccionado
       let imagenUrl = updateData.imagen_url;
       if (selectedFile) {
         imagenUrl = await uploadImage(selectedFile);
       }
 
-      // Obtener stock anterior
       const { data: oldProduct } = await supabase
         .from("productos")
         .select("stock_actual")
@@ -159,7 +149,6 @@ export default function Productos() {
 
       if (error) throw error;
 
-      // Registrar movimiento si cambió el stock
       if (oldProduct && oldProduct.stock_actual !== updateData.stock_actual) {
         const diferencia = updateData.stock_actual - oldProduct.stock_actual;
         await supabase.from("movimientos_inventario").insert({
@@ -179,19 +168,15 @@ export default function Productos() {
     },
   });
 
-  // Mutation para eliminar producto
   const deleteProductMutation = useMutation({
     mutationFn: async (id: number) => {
-      // Primero eliminar los movimientos de inventario asociados
       await supabase
         .from("movimientos_inventario")
         .delete()
         .eq("producto_id", id);
 
-      // Luego intentar eliminar el producto
       const { error } = await supabase.from("productos").delete().eq("id", id);
       if (error) {
-        // Si hay error por relaciones con ventas, informar al usuario
         if (error.code === "23503") {
           throw new Error(
             "No se puede eliminar el producto porque tiene ventas asociadas"
@@ -211,7 +196,6 @@ export default function Productos() {
     },
   });
 
-  // Función para generar SKU aleatorio
   const generateSKU = () => {
     const prefix = "SKU";
     const timestamp = Date.now().toString().slice(-6);
@@ -219,22 +203,18 @@ export default function Productos() {
     return `${prefix}-${timestamp}-${random}`;
   };
 
-  // Función para manejar selección de archivo
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validar tipo de archivo
       if (!file.type.startsWith("image/")) {
         alert("Por favor selecciona un archivo de imagen válido");
         return;
       }
-      // Validar tamaño (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
         alert("La imagen no debe superar los 2MB");
         return;
       }
       setSelectedFile(file);
-      // Crear preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -243,7 +223,6 @@ export default function Productos() {
     }
   };
 
-  // Función para subir imagen a Supabase Storage
   const uploadImage = async (file: File): Promise<string> => {
     setUploadingImage(true);
     try {
@@ -259,7 +238,6 @@ export default function Productos() {
 
       if (uploadError) throw uploadError;
 
-      // Obtener URL pública
       const {
         data: { publicUrl },
       } = supabase.storage.from("productos-imagenes").getPublicUrl(filePath);
@@ -281,7 +259,7 @@ export default function Productos() {
       precio_costo: 0,
       stock_actual: 0,
       stock_minimo: 0,
-      sku: generateSKU(), // SKU generado automáticamente
+      sku: generateSKU(),
       categoria_id: null,
       imagen_url: "",
     });
@@ -335,7 +313,6 @@ export default function Productos() {
     }
   };
 
-  // Funciones para gestión de categorías
   const createCategoriaMutation = useMutation({
     mutationFn: async (newCategoria: typeof categoriaFormData) => {
       const { data, error } = await supabase
@@ -434,747 +411,767 @@ export default function Productos() {
     productos?.filter((p) => p.stock_actual <= p.stock_minimo).length || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Gestión de Inventario
-        </h1>
-        <p className="text-gray-600">Administra tus productos y stock</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50 p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8 bg-gradient-to-r from-pink-100 via-purple-100 to-blue-100 p-6 lg:p-8 rounded-2xl shadow-sm border border-pink-50">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Productos</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {productos?.length || 0}
+              <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
+                Gestión de Inventario
+              </h1>
+              <p className="text-gray-600 font-medium">
+                Administra productos y stock con facilidad
               </p>
             </div>
-            <Package className="w-10 h-10 text-blue-500" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Valor Inventario</p>
-              <p className="text-2xl font-bold text-green-600">
-                $
-                {productos
-                  ?.reduce((sum, p) => sum + p.precio_costo * p.stock_actual, 0)
-                  .toFixed(2) || 0}
-              </p>
+            <div className="mt-4 lg:mt-0 flex items-center space-x-4">
+              <Package className="w-5 h-5 text-emerald-600" />
+              <span className="text-sm text-gray-600">
+                {stockBajoCount} en stock bajo
+              </span>
             </div>
-            <Package className="w-10 h-10 text-green-500" />
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Stock Bajo</p>
-              <p className="text-2xl font-bold text-red-600">
-                {stockBajoCount}
-              </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-emerald-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Total Productos
+                </p>
+                <p className="text-3xl font-bold text-gray-800">
+                  {productos?.length || 0}
+                </p>
+              </div>
+              <Package className="w-12 h-12 text-emerald-400" />
             </div>
-            <AlertTriangle className="w-10 h-10 text-red-500" />
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-blue-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Valor Inventario
+                </p>
+                <p className="text-3xl font-bold text-blue-700">
+                  $
+                  {productos
+                    ?.reduce(
+                      (sum, p) => sum + p.precio_costo * p.stock_actual,
+                      0
+                    )
+                    .toFixed(2) || 0}
+                </p>
+              </div>
+              <Package className="w-12 h-12 text-blue-400" />
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Stock Bajo</p>
+                <p className="text-3xl font-bold text-red-700">
+                  {stockBajoCount}
+                </p>
+              </div>
+              <AlertTriangle className="w-12 h-12 text-red-400" />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Filters and Actions */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o SKU..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-8 border border-purple-50 sticky top-4 z-10">
+          <div className="flex flex-col md:flex-row gap-4 items-center md:items-start">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-purple-400" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-transparent outline-none transition-all"
+              />
+            </div>
 
-          {/* Category Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-            <select
-              value={selectedCategoria}
-              onChange={(e) =>
-                setSelectedCategoria(
-                  e.target.value === "all" ? "all" : Number(e.target.value)
-                )
-              }
-              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
-            >
-              <option value="all">Todas las categorías</option>
-              {categorias?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Add Button */}
-          <button
-            onClick={openAddModal}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Agregar Producto</span>
-          </button>
-
-          {/* Manage Categories Button */}
-          <button
-            onClick={openCategoriaListModal}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <Tag className="w-5 h-5" />
-            <span>Gestionar Categorías</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Products Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {loadingProductos ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Cargando productos...</p>
-          </div>
-        ) : productos && productos.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Imagen
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Producto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    SKU
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Precio Costo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Precio Venta
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {productos.map((producto) => (
-                  <tr
-                    key={producto.id}
-                    className={`hover:bg-gray-50 ${
-                      producto.stock_actual <= producto.stock_minimo
-                        ? "bg-red-50"
-                        : ""
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      {producto.imagen_url ? (
-                        <img
-                          src={producto.imagen_url}
-                          alt={producto.nombre}
-                          className="w-16 h-16 object-cover rounded-lg"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Package className="w-8 h-8 text-gray-400" />
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {producto.nombre}
-                        </p>
-                        {producto.descripcion && (
-                          <p className="text-sm text-gray-500">
-                            {producto.descripcion}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {producto.sku || "-"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      ${producto.precio_costo.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-green-600">
-                      ${producto.precio_venta.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm">
-                        <p className="font-semibold text-gray-900">
-                          {producto.stock_actual} unidades
-                        </p>
-                        <p className="text-gray-500">
-                          Mín: {producto.stock_minimo}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {producto.stock_actual <= producto.stock_minimo ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          Stock Bajo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Disponible
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button
-                        onClick={() => openEditModal(producto)}
-                        className="text-blue-600 hover:text-blue-800 inline-flex items-center"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(producto)}
-                        className="text-red-600 hover:text-red-800 inline-flex items-center"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-8 text-center text-gray-500">
-            <Package className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg">No hay productos registrados</p>
-            <p className="text-sm">
-              Comienza agregando tu primer producto al inventario
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Modal Add/Edit */}
-      {modalMode && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-800">
-                {modalMode === "add" ? "Agregar Producto" : "Editar Producto"}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-500 hover:text-gray-700"
+            <div className="relative flex-1 md:flex-none md:w-48">
+              <Filter className="absolute left-3 top-3 w-5 h-5 text-purple-400" />
+              <select
+                value={selectedCategoria}
+                onChange={(e) =>
+                  setSelectedCategoria(
+                    e.target.value === "all" ? "all" : Number(e.target.value)
+                  )
+                }
+                className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none appearance-none bg-white"
               >
-                <X className="w-6 h-6" />
+                <option value="all">Todas las categorías</option>
+                {categorias?.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={openAddModal}
+                className="bg-gradient-to-r from-pink-200 to-purple-200 hover:from-pink-300 hover:to-purple-300 text-purple-700 px-6 py-3 rounded-xl flex items-center space-x-2 transition-all duration-300 shadow-sm hover:shadow-md font-medium"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Agregar Producto</span>
+              </button>
+
+              <button
+                onClick={openCategoriaListModal}
+                className="bg-gradient-to-r from-blue-200 to-emerald-200 hover:from-blue-300 hover:to-emerald-300 text-blue-700 px-6 py-3 rounded-xl flex items-center space-x-2 transition-all duration-300 shadow-sm hover:shadow-md font-medium"
+              >
+                <Tag className="w-5 h-5" />
+                <span>Categorías</span>
               </button>
             </div>
+          </div>
+        </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre del Producto *
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-50">
+          {loadingProductos ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
+              <p className="text-gray-600 font-medium">Cargando productos...</p>
+            </div>
+          ) : productos && productos.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full divide-y divide-gray-100">
+                <thead className="bg-gradient-to-r from-pink-50 to-purple-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Imagen
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Producto
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      SKU
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Costo
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Venta
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Stock
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {productos.map((producto, index) => (
+                    <tr
+                      key={producto.id}
+                      className={`transition-all duration-200 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 ${
+                        index % 2 === 0 ? "bg-white" : "bg-gray-25"
+                      } ${
+                        producto.stock_actual <= producto.stock_minimo
+                          ? "bg-red-25 border-l-4 border-red-100"
+                          : ""
+                      }`}
+                    >
+                      <td className="px-6 py-4">
+                        {producto.imagen_url ? (
+                          <img
+                            src={producto.imagen_url}
+                            alt={producto.nombre}
+                            className="w-14 h-14 object-cover rounded-xl shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center">
+                            <Package className="w-6 h-6 text-purple-400" />
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-gray-800 text-sm">
+                            {producto.nombre}
+                          </p>
+                          {producto.descripcion && (
+                            <p className="text-xs text-gray-500 truncate max-w-32">
+                              {producto.descripcion}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600 font-medium">
+                          {producto.sku || "-"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-900 font-medium">
+                          ${producto.precio_costo.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-semibold text-emerald-700">
+                          ${producto.precio_venta.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-gray-800">
+                            {producto.stock_actual} un.
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Mín: {producto.stock_minimo}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {producto.stock_actual <= producto.stock_minimo ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Bajo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                            OK
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button
+                          onClick={() => openEditModal(producto)}
+                          className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-xl transition-all duration-200"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(producto)}
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-xl transition-all duration-200"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-gray-500">
+              <Package className="w-16 h-16 mx-auto mb-4 opacity-40 text-purple-300" />
+              <p className="text-xl font-medium text-gray-600 mb-2">
+                No hay productos aún
+              </p>
+              <p className="text-sm">Agrega tu primer producto para empezar</p>
+            </div>
+          )}
+        </div>
+
+        {modalMode && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {modalMode === "add" ? "Nuevo Producto" : "Editar Producto"}
+                </h2>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded-xl transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.nombre}
+                      onChange={(e) =>
+                        setFormData({ ...formData, nombre: e.target.value })
+                      }
+                      className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-transparent outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Descripción
+                    </label>
+                    <textarea
+                      value={formData.descripcion}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          descripcion: e.target.value,
+                        })
+                      }
+                      rows={3}
+                      className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-transparent outline-none transition-all resize-none"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Imagen
+                    </label>
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                          className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 transition-all"
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                          JPG, PNG, GIF. Máx 2MB
+                        </p>
+                      </div>
+                      {imagePreview && (
+                        <div className="relative w-28 h-28 border-2 border-purple-200 rounded-xl overflow-hidden flex-shrink-0">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFile(null);
+                              setImagePreview("");
+                              setFormData({ ...formData, imagen_url: "" });
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-all"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      SKU {modalMode === "add" && "(auto)"}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={formData.sku}
+                        onChange={(e) =>
+                          setFormData({ ...formData, sku: e.target.value })
+                        }
+                        className="flex-1 px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none bg-gray-50"
+                        readOnly={modalMode === "add"}
+                      />
+                      {modalMode === "add" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, sku: generateSKU() })
+                          }
+                          className="px-3 py-3 bg-purple-200 hover:bg-purple-300 text-purple-700 rounded-xl transition-all text-sm font-medium"
+                        >
+                          ↻
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Categoría
+                    </label>
+                    <select
+                      value={formData.categoria_id || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          categoria_id: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none"
+                    >
+                      <option value="">Sin categoría</option>
+                      {categorias?.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Costo *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={formData.precio_costo}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          precio_costo: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none"
+                    />
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Venta *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={formData.precio_venta}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          precio_venta: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none"
+                    />
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Stock Actual *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={formData.stock_actual}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          stock_actual: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none"
+                    />
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Stock Mínimo *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={formData.stock_minimo}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          stock_minimo: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-6 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      createProductMutation.isPending ||
+                      updateProductMutation.isPending ||
+                      uploadingImage
+                    }
+                    className="bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-700 px-6 py-3 rounded-xl flex items-center space-x-2 disabled:opacity-50 transition-all duration-200 shadow-sm font-medium"
+                  >
+                    <Save className="w-5 h-5" />
+                    <span>
+                      {uploadingImage
+                        ? "Subiendo..."
+                        : createProductMutation.isPending ||
+                          updateProductMutation.isPending
+                        ? "Guardando..."
+                        : "Guardar"}
+                    </span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showDeleteConfirm && productToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="bg-red-100 p-3 rounded-xl">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Confirmar Eliminación
+                </h3>
+              </div>
+
+              <p className="text-gray-600 mb-6">
+                ¿Eliminar{" "}
+                <span className="font-semibold text-gray-800">
+                  {productToDelete.nombre}
+                </span>
+                ? No se puede deshacer.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setProductToDelete(null);
+                  }}
+                  className="px-6 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteProductMutation.isPending}
+                  className="bg-gradient-to-r from-red-200 to-red-300 hover:from-red-300 hover:to-red-400 text-red-700 px-6 py-3 rounded-xl flex items-center space-x-2 disabled:opacity-50 transition-all shadow-sm font-medium"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span>
+                    {deleteProductMutation.isPending
+                      ? "Eliminando..."
+                      : "Eliminar"}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {categoriaModalMode === "list" && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-800">Categorías</h2>
+                <button
+                  onClick={closeCategoriaModal}
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded-xl transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <button
+                  onClick={openAddCategoriaModal}
+                  className="w-full bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-700 py-4 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 shadow-sm font-medium mb-6"
+                >
+                  <FolderPlus className="w-5 h-5" />
+                  <span>Nueva Categoría</span>
+                </button>
+
+                {categorias && categorias.length > 0 ? (
+                  <div className="space-y-3">
+                    {categorias.map((categoria) => (
+                      <div
+                        key={categoria.id}
+                        className="border border-gray-100 rounded-xl p-4 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-200"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-800 mb-1">
+                              {categoria.nombre}
+                            </h3>
+                            {categoria.descripcion && (
+                              <p className="text-sm text-gray-600">
+                                {categoria.descripcion}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex space-x-2 ml-4">
+                            <button
+                              onClick={() => openEditCategoriaModal(categoria)}
+                              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-xl transition-all"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategoria(categoria)}
+                              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-xl transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Tag className="w-16 h-16 mx-auto mb-4 opacity-40 text-purple-300" />
+                    <p className="text-lg font-medium">Sin categorías</p>
+                    <p className="text-sm">Agrega una para organizar mejor</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(categoriaModalMode === "add" || categoriaModalMode === "edit") && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {categoriaModalMode === "add"
+                    ? "Nueva Categoría"
+                    : "Editar Categoría"}
+                </h2>
+                <button
+                  onClick={() => setCategoriaModalMode("list")}
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded-xl transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCategoriaSubmit} className="p-6 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre *
                   </label>
                   <input
                     type="text"
                     required
-                    value={formData.nombre}
+                    value={categoriaFormData.nombre}
                     onChange={(e) =>
-                      setFormData({ ...formData, nombre: e.target.value })
+                      setCategoriaFormData({
+                        ...categoriaFormData,
+                        nombre: e.target.value,
+                      })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Descripción
                   </label>
                   <textarea
-                    value={formData.descripcion}
+                    value={categoriaFormData.descripcion}
                     onChange={(e) =>
-                      setFormData({ ...formData, descripcion: e.target.value })
+                      setCategoriaFormData({
+                        ...categoriaFormData,
+                        descripcion: e.target.value,
+                      })
                     }
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none transition-all resize-none"
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Imagen del Producto
-                  </label>
-                  <div className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileSelect}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Formatos: JPG, PNG, GIF. Tamaño máximo: 2MB
-                      </p>
-                    </div>
-                    {imagePreview && (
-                      <div className="relative w-24 h-24 border-2 border-gray-200 rounded-lg overflow-hidden">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedFile(null);
-                            setImagePreview("");
-                            setFormData({ ...formData, imagen_url: "" });
-                          }}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    SKU {modalMode === "add" && "(generado automáticamente)"}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={formData.sku}
-                      onChange={(e) =>
-                        setFormData({ ...formData, sku: e.target.value })
-                      }
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-                      readOnly={modalMode === "add"}
-                    />
-                    {modalMode === "add" && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData({ ...formData, sku: generateSKU() })
-                        }
-                        className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors text-sm font-medium"
-                        title="Generar nuevo SKU"
-                      >
-                        ↻
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Categoría
-                  </label>
-                  <select
-                    value={formData.categoria_id || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        categoria_id: e.target.value
-                          ? Number(e.target.value)
-                          : null,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setCategoriaModalMode("list")}
+                    className="px-6 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
                   >
-                    <option value="">Sin categoría</option>
-                    {categorias?.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Precio de Costo *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={formData.precio_costo}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        precio_costo: parseFloat(e.target.value) || 0,
-                      })
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      createCategoriaMutation.isPending ||
+                      updateCategoriaMutation.isPending
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
+                    className="bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-700 px-6 py-3 rounded-xl flex items-center space-x-2 disabled:opacity-50 transition-all shadow-sm font-medium"
+                  >
+                    <Save className="w-5 h-5" />
+                    <span>
+                      {createCategoriaMutation.isPending ||
+                      updateCategoriaMutation.isPending
+                        ? "Guardando..."
+                        : "Guardar"}
+                    </span>
+                  </button>
                 </div>
+              </form>
+            </div>
+          </div>
+        )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Precio de Venta *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={formData.precio_venta}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        precio_venta: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
+        {showDeleteCategoriaConfirm && categoriaToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="bg-red-100 p-3 rounded-xl">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Stock Actual *
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={formData.stock_actual}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        stock_actual: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Stock Mínimo *
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={formData.stock_minimo}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        stock_minimo: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Confirmar Eliminación
+                </h3>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <p className="text-gray-600 mb-6">
+                ¿Eliminar{" "}
+                <span className="font-semibold text-gray-800">
+                  {categoriaToDelete.nombre}
+                </span>
+                ? Productos quedarán sin categoría.
+              </p>
+
+              <div className="flex justify-end space-x-3">
                 <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => {
+                    setShowDeleteCategoriaConfirm(false);
+                    setCategoriaToDelete(null);
+                  }}
+                  className="px-6 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
                 >
                   Cancelar
                 </button>
                 <button
-                  type="submit"
-                  disabled={
-                    createProductMutation.isPending ||
-                    updateProductMutation.isPending ||
-                    uploadingImage
-                  }
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 transition-colors"
+                  onClick={confirmDeleteCategoria}
+                  disabled={deleteCategoriaMutation.isPending}
+                  className="bg-gradient-to-r from-red-200 to-red-300 hover:from-red-300 hover:to-red-400 text-red-700 px-6 py-3 rounded-xl flex items-center space-x-2 disabled:opacity-50 transition-all shadow-sm font-medium"
                 >
-                  <Save className="w-5 h-5" />
+                  <Trash2 className="w-5 h-5" />
                   <span>
-                    {uploadingImage
-                      ? "Subiendo imagen..."
-                      : createProductMutation.isPending ||
-                        updateProductMutation.isPending
-                      ? "Guardando..."
-                      : "Guardar"}
+                    {deleteCategoriaMutation.isPending
+                      ? "Eliminando..."
+                      : "Eliminar"}
                   </span>
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && productToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-red-100 p-3 rounded-full">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800">
-                Confirmar Eliminación
-              </h3>
-            </div>
-
-            <p className="text-gray-600 mb-6">
-              ¿Estás seguro de que deseas eliminar el producto{" "}
-              <span className="font-semibold">{productToDelete.nombre}</span>?
-              Esta acción no se puede deshacer.
-            </p>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setProductToDelete(null);
-                }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deleteProductMutation.isPending}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 transition-colors"
-              >
-                <Trash2 className="w-5 h-5" />
-                <span>
-                  {deleteProductMutation.isPending
-                    ? "Eliminando..."
-                    : "Eliminar"}
-                </span>
-              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Modal de Gestión de Categorías */}
-      {categoriaModalMode === "list" && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-800">
-                Gestión de Categorías
-              </h2>
-              <button
-                onClick={closeCategoriaModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <button
-                onClick={openAddCategoriaModal}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center justify-center space-x-2 transition-colors mb-4"
-              >
-                <FolderPlus className="w-5 h-5" />
-                <span>Agregar Nueva Categoría</span>
-              </button>
-
-              {categorias && categorias.length > 0 ? (
-                <div className="space-y-3">
-                  {categorias.map((categoria) => (
-                    <div
-                      key={categoria.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-800 mb-1">
-                            {categoria.nombre}
-                          </h3>
-                          {categoria.descripcion && (
-                            <p className="text-sm text-gray-600">
-                              {categoria.descripcion}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex space-x-2 ml-4">
-                          <button
-                            onClick={() => openEditCategoriaModal(categoria)}
-                            className="text-blue-600 hover:text-blue-800 p-2"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategoria(categoria)}
-                            className="text-red-600 hover:text-red-800 p-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Tag className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">No hay categorías registradas</p>
-                  <p className="text-sm">
-                    Comienza agregando tu primera categoría
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Add/Edit Categoría */}
-      {(categoriaModalMode === "add" || categoriaModalMode === "edit") && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-800">
-                {categoriaModalMode === "add"
-                  ? "Agregar Categoría"
-                  : "Editar Categoría"}
-              </h2>
-              <button
-                onClick={() => setCategoriaModalMode("list")}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCategoriaSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre de la Categoría *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={categoriaFormData.nombre}
-                  onChange={(e) =>
-                    setCategoriaFormData({
-                      ...categoriaFormData,
-                      nombre: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
-                </label>
-                <textarea
-                  value={categoriaFormData.descripcion}
-                  onChange={(e) =>
-                    setCategoriaFormData({
-                      ...categoriaFormData,
-                      descripcion: e.target.value,
-                    })
-                  }
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setCategoriaModalMode("list")}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    createCategoriaMutation.isPending ||
-                    updateCategoriaMutation.isPending
-                  }
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 transition-colors"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>
-                    {createCategoriaMutation.isPending ||
-                    updateCategoriaMutation.isPending
-                      ? "Guardando..."
-                      : "Guardar"}
-                  </span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Confirmación de Eliminación de Categoría */}
-      {showDeleteCategoriaConfirm && categoriaToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-red-100 p-3 rounded-full">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800">
-                Confirmar Eliminación
-              </h3>
-            </div>
-
-            <p className="text-gray-600 mb-6">
-              ¿Estás seguro de que deseas eliminar la categoría{" "}
-              <span className="font-semibold">{categoriaToDelete.nombre}</span>?
-              Los productos asociados quedarán sin categoría.
-            </p>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeleteCategoriaConfirm(false);
-                  setCategoriaToDelete(null);
-                }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDeleteCategoria}
-                disabled={deleteCategoriaMutation.isPending}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 transition-colors"
-              >
-                <Trash2 className="w-5 h-5" />
-                <span>
-                  {deleteCategoriaMutation.isPending
-                    ? "Eliminando..."
-                    : "Eliminar"}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
