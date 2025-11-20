@@ -32,9 +32,7 @@ export default function Ventas() {
     queryFn: async () => {
       let query = supabase
         .from("productos")
-        .select(
-          "id, nombre, sku, precio_venta, stock_actual, stock_minimo, imagen_url"
-        )
+        .select("*")
         .gt("stock_actual", 0)
         .order("nombre");
 
