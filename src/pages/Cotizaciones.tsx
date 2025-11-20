@@ -73,9 +73,12 @@ export default function Cotizaciones() {
   const [estadoFiltro, setEstadoFiltro] = useState<string>("todos");
   const [tipoCotizacion, setTipoCotizacion] = useState<
     "personalizada" | "estandar"
-  >("personalizada");
+  >("estandar");
   const [searchCotizacion, setSearchCotizacion] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [editingCotizacion, setEditingCotizacion] =
+    useState<CotizacionConDetalles | null>(null);
   const [showDetalles, setShowDetalles] = useState(false);
   const [showIngredientesManager, setShowIngredientesManager] = useState(false);
   const [showIngredienteModal, setShowIngredienteModal] = useState(false);
@@ -326,6 +329,108 @@ export default function Cotizaciones() {
     },
   });
 
+  const updateCotizacionMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingCotizacion) throw new Error("No hay cotización para editar");
+
+      // Validación según tipo de cotización
+      if (tipoCotizacion === "personalizada") {
+        if (
+          (cart.length === 0 && cartIngredientes.length === 0) ||
+          !formData.cliente_id ||
+          !formData.valida_hasta
+        )
+          throw new Error(
+            "Datos incompletos: Se requiere cliente y productos/ingredientes"
+          );
+      } else {
+        if (cartIngredientes.length === 0 || !formData.nombre_producto)
+          throw new Error(
+            "Datos incompletos: Se requiere nombre del producto e ingredientes"
+          );
+      }
+
+      const totalProductos = cart.reduce((sum, item) => sum + item.subtotal, 0);
+      const totalIngredientes = cartIngredientes.reduce(
+        (sum, item) => sum + item.subtotal,
+        0
+      );
+      const total = totalProductos + totalIngredientes;
+
+      const cotizacionData: any = {
+        tipo: tipoCotizacion,
+        total,
+      };
+
+      if (tipoCotizacion === "personalizada") {
+        cotizacionData.valida_hasta = formData.valida_hasta;
+        cotizacionData.cliente_id = formData.cliente_id;
+      } else {
+        cotizacionData.cliente_id = null;
+        cotizacionData.nombre_producto = formData.nombre_producto;
+      }
+
+      // Actualizar cotización
+      const { error: cotizacionError } = await supabase
+        .from("cotizaciones")
+        .update(cotizacionData)
+        .eq("id", editingCotizacion.id);
+
+      if (cotizacionError) throw cotizacionError;
+
+      // Eliminar items anteriores
+      await supabase
+        .from("cotizacion_items")
+        .delete()
+        .eq("cotizacion_id", editingCotizacion.id);
+
+      await supabase
+        .from("cotizacion_ingredientes")
+        .delete()
+        .eq("cotizacion_id", editingCotizacion.id);
+
+      // Insertar nuevos productos
+      if (cart.length > 0 && tipoCotizacion === "personalizada") {
+        const items = cart.map((item) => ({
+          cotizacion_id: editingCotizacion.id,
+          producto_id: item.producto.id,
+          cantidad: item.cantidad,
+          precio_unitario: item.producto.precio_venta,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("cotizacion_items")
+          .insert(items);
+
+        if (itemsError) throw itemsError;
+      }
+
+      // Insertar nuevos ingredientes
+      if (cartIngredientes.length > 0) {
+        const ingredientesItems = cartIngredientes.map((item) => ({
+          cotizacion_id: editingCotizacion.id,
+          ingrediente_id: item.ingrediente.id,
+          cantidad: item.cantidad,
+          precio_unitario: item.ingrediente.precio_unitario,
+          notas: item.notas,
+        }));
+
+        const { error: ingredientesError } = await supabase
+          .from("cotizacion_ingredientes")
+          .insert(ingredientesItems);
+
+        if (ingredientesError) throw ingredientesError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cotizaciones"] });
+      resetForm();
+      setShowModal(false);
+      setModalMode("create");
+      setEditingCotizacion(null);
+    },
+  });
+
   const updateEstadoMutation = useMutation({
     mutationFn: async ({
       id,
@@ -459,6 +564,8 @@ export default function Cotizaciones() {
     setSearchProducto("");
     setSearchIngrediente("");
     setShowIngredientes(false);
+    setModalMode("create");
+    setEditingCotizacion(null);
   };
 
   const addToCart = (producto: Product) => {
@@ -554,6 +661,57 @@ export default function Cotizaciones() {
   const openDetalles = (cotizacion: CotizacionConDetalles) => {
     setSelectedCotizacion(cotizacion);
     setShowDetalles(true);
+  };
+
+  const openEditModal = async (cotizacion: CotizacionConDetalles) => {
+    setEditingCotizacion(cotizacion);
+    setModalMode("edit");
+    setTipoCotizacion(cotizacion.tipo);
+
+    // Cargar datos del formulario
+    setFormData({
+      cliente_id: cotizacion.cliente_id || 0,
+      valida_hasta: cotizacion.valida_hasta || "",
+      nombre_producto: cotizacion.nombre_producto || "",
+    });
+
+    // Cargar productos si es personalizada
+    if (cotizacion.tipo === "personalizada") {
+      const { data: items } = await supabase
+        .from("cotizacion_items")
+        .select("*, productos(*)")
+        .eq("cotizacion_id", cotizacion.id);
+
+      if (items) {
+        const cartItems: CartItem[] = items.map((item: any) => ({
+          producto: item.productos,
+          cantidad: item.cantidad,
+          subtotal: item.cantidad * item.precio_unitario,
+        }));
+        setCart(cartItems);
+      }
+      setShowIngredientes(false);
+    } else {
+      setShowIngredientes(true);
+    }
+
+    // Cargar ingredientes
+    const { data: ingredientesData } = await supabase
+      .from("cotizacion_ingredientes")
+      .select("*, ingredientes(*)")
+      .eq("cotizacion_id", cotizacion.id);
+
+    if (ingredientesData) {
+      const cartIng: CartIngrediente[] = ingredientesData.map((item: any) => ({
+        ingrediente: item.ingredientes,
+        cantidad: item.cantidad,
+        subtotal: item.cantidad * item.precio_unitario,
+        notas: item.notas || "",
+      }));
+      setCartIngredientes(cartIng);
+    }
+
+    setShowModal(true);
   };
 
   const openIngredientesManager = () => {
@@ -797,8 +955,16 @@ export default function Cotizaciones() {
                       <span>Ver</span>
                     </button>
                     <button
+                      onClick={() => openEditModal(cotizacion)}
+                      className="bg-gradient-to-r from-amber-100 to-yellow-100 hover:from-amber-200 hover:to-yellow-200 text-amber-700 px-4 py-2 rounded-xl transition-all duration-200"
+                      title="Editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleDelete(cotizacion.id)}
                       className="bg-gradient-to-r from-red-100 to-red-200 hover:from-red-200 hover:to-red-300 text-red-700 px-4 py-2 rounded-xl transition-all duration-200"
+                      title="Eliminar"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -823,7 +989,9 @@ export default function Cotizaciones() {
             <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-100">
                 <h2 className="text-2xl font-bold text-gray-800">
-                  Nueva Cotización
+                  {modalMode === "create"
+                    ? "Nueva Cotización"
+                    : "Editar Cotización"}
                 </h2>
                 <button
                   onClick={() => {
@@ -1235,25 +1403,34 @@ export default function Cotizaciones() {
                     </div>
 
                     <button
-                      onClick={() => createCotizacionMutation.mutate()}
+                      onClick={() =>
+                        modalMode === "create"
+                          ? createCotizacionMutation.mutate()
+                          : updateCotizacionMutation.mutate()
+                      }
                       disabled={
                         tipoCotizacion === "personalizada"
                           ? (cart.length === 0 &&
                               cartIngredientes.length === 0) ||
                             !formData.cliente_id ||
                             !formData.valida_hasta ||
-                            createCotizacionMutation.isPending
+                            createCotizacionMutation.isPending ||
+                            updateCotizacionMutation.isPending
                           : cartIngredientes.length === 0 ||
                             !formData.nombre_producto ||
-                            createCotizacionMutation.isPending
+                            createCotizacionMutation.isPending ||
+                            updateCotizacionMutation.isPending
                       }
                       className="w-full bg-gradient-to-r from-emerald-200 to-emerald-300 hover:from-emerald-300 hover:to-emerald-400 text-emerald-800 py-3 rounded-xl flex items-center justify-center space-x-2 disabled:opacity-50 transition-all shadow-sm font-medium"
                     >
                       <Save className="w-5 h-5" />
                       <span>
-                        {createCotizacionMutation.isPending
+                        {createCotizacionMutation.isPending ||
+                        updateCotizacionMutation.isPending
                           ? "Guardando..."
-                          : "Crear Cotización"}
+                          : modalMode === "create"
+                          ? "Crear Cotización"
+                          : "Actualizar Cotización"}
                       </span>
                     </button>
                   </div>

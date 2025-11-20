@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import type { Product, Categoria } from "../types";
+import confetti from "canvas-confetti";
 import {
   Search,
   Plus,
@@ -14,6 +15,9 @@ import {
   Filter,
   FolderPlus,
   Tag,
+  TrendingUp,
+  Target,
+  DollarSign,
 } from "lucide-react";
 
 type ModalMode = "add" | "edit" | null;
@@ -28,6 +32,13 @@ export default function Productos() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showGananciasModal, setShowGananciasModal] = useState(false);
+  const [metaDiaria, setMetaDiaria] = useState(1000); // Meta por defecto $1000
+  const [metaSemanal, setMetaSemanal] = useState(7000);
+  const [metaMensual, setMetaMensual] = useState(30000);
+  const [tipoMetaActiva, setTipoMetaActiva] = useState<
+    "diaria" | "semanal" | "mensual"
+  >("diaria");
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   const [categoriaModalMode, setCategoriaModalMode] =
@@ -89,6 +100,77 @@ export default function Productos() {
         .order("nombre");
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  const { data: ventasHoy = [] } = useQuery({
+    queryKey: ["ventasHoy"],
+    queryFn: async () => {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from("ventas")
+        .select("total")
+        .gte("created_at", hoy.toISOString());
+      if (error) {
+        console.error("Error al cargar ventas:", error);
+        return [];
+      }
+      return data || [];
+    },
+    refetchInterval: 5000,
+    retry: 1,
+    staleTime: 0,
+  });
+
+  // Query para cargar la meta diaria del usuario
+  const { data: metaData } = useQuery({
+    queryKey: ["metaDiaria"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("metas")
+        .select("monto")
+        .eq("tipo", "diaria")
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error al cargar meta:", error);
+      }
+      return data?.monto || 1000;
+    },
+  });
+
+  // Query para cargar meta semanal
+  const { data: metaSemanalData } = useQuery({
+    queryKey: ["metaSemanal"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("metas")
+        .select("monto")
+        .eq("tipo", "semanal")
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error al cargar meta semanal:", error);
+      }
+      return data?.monto || 7000;
+    },
+  });
+
+  // Query para cargar meta mensual
+  const { data: metaMensualData } = useQuery({
+    queryKey: ["metaMensual"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("metas")
+        .select("monto")
+        .eq("tipo", "mensual")
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error al cargar meta mensual:", error);
+      }
+      return data?.monto || 30000;
     },
   });
 
@@ -410,6 +492,151 @@ export default function Productos() {
   const stockBajoCount =
     productos?.filter((p) => p.stock_actual <= p.stock_minimo).length || 0;
 
+  const gananciaEstimada =
+    productos?.reduce((sum, p) => sum + p.precio_venta * p.stock_actual, 0) ||
+    0;
+
+  const totalVentasHoy = Array.isArray(ventasHoy)
+    ? ventasHoy.reduce((sum, venta) => sum + venta.total, 0)
+    : 0;
+
+  const numeroVentasHoy = Array.isArray(ventasHoy) ? ventasHoy.length : 0;
+
+  // Calcular porcentaje y meta cumplida según el tipo activo
+  const metaActual =
+    tipoMetaActiva === "diaria"
+      ? metaDiaria
+      : tipoMetaActiva === "semanal"
+      ? metaSemanal
+      : metaMensual;
+  const porcentajeMeta = Math.min((totalVentasHoy / metaActual) * 100, 100);
+  const metaCumplida = totalVentasHoy >= metaActual;
+
+  const lanzarConfeti = () => {
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = {
+      startVelocity: 30,
+      spread: 360,
+      ticks: 60,
+      zIndex: 9999,
+    };
+
+    const randomInRange = (min: number, max: number) => {
+      return Math.random() * (max - min) + min;
+    };
+
+    const interval: any = setInterval(() => {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+      });
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+      });
+    }, 250);
+  };
+
+  useEffect(() => {
+    if (showGananciasModal && metaCumplida) {
+      lanzarConfeti();
+    }
+  }, [showGananciasModal, metaCumplida]);
+
+  // Cargar la meta cuando esté disponible
+  useEffect(() => {
+    if (metaData && typeof metaData === "number") {
+      setMetaDiaria(metaData);
+    }
+  }, [metaData]);
+
+  useEffect(() => {
+    if (metaSemanalData && typeof metaSemanalData === "number") {
+      setMetaSemanal(metaSemanalData);
+    }
+  }, [metaSemanalData]);
+
+  useEffect(() => {
+    if (metaMensualData && typeof metaMensualData === "number") {
+      setMetaMensual(metaMensualData);
+    }
+  }, [metaMensualData]);
+
+  // Función para guardar la meta en la base de datos
+  const guardarMeta = async (
+    tipo: "diaria" | "semanal" | "mensual",
+    nuevaMeta: number
+  ) => {
+    try {
+      const { error } = await supabase.from("metas").upsert(
+        {
+          tipo: tipo,
+          monto: nuevaMeta,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "tipo,usuario_id",
+        }
+      );
+
+      if (error) {
+        console.error("Error al guardar meta:", error);
+      } else {
+        // Invalidar la query correspondiente para refrescar el dato
+        if (tipo === "diaria") {
+          queryClient.invalidateQueries({ queryKey: ["metaDiaria"] });
+        } else if (tipo === "semanal") {
+          queryClient.invalidateQueries({ queryKey: ["metaSemanal"] });
+        } else if (tipo === "mensual") {
+          queryClient.invalidateQueries({ queryKey: ["metaMensual"] });
+        }
+      }
+    } catch (error) {
+      console.error("Error al guardar meta:", error);
+    }
+  };
+
+  // Guardar meta diaria cuando cambia (con debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (metaDiaria > 0 && metaData !== metaDiaria) {
+        guardarMeta("diaria", metaDiaria);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [metaDiaria, metaData]);
+
+  // Guardar meta semanal cuando cambia (con debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (metaSemanal > 0 && metaSemanalData !== metaSemanal) {
+        guardarMeta("semanal", metaSemanal);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [metaSemanal, metaSemanalData]);
+
+  // Guardar meta mensual cuando cambia (con debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (metaMensual > 0 && metaMensualData !== metaMensual) {
+        guardarMeta("mensual", metaMensual);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [metaMensual, metaMensualData]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -432,7 +659,7 @@ export default function Productos() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-emerald-100">
             <div className="flex items-center justify-between">
               <div>
@@ -465,6 +692,25 @@ export default function Productos() {
               <Package className="w-12 h-12 text-blue-400" />
             </div>
           </div>
+          <button
+            onClick={() => setShowGananciasModal(true)}
+            className="bg-gradient-to-br from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-2xl shadow-sm hover:shadow-md p-6 border-l-4 border-purple-200 transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">
+                  Ganancias Estimadas
+                </p>
+                <p className="text-3xl font-bold text-purple-700">
+                  ${gananciaEstimada.toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500 mt-2 group-hover:text-purple-600 transition-colors">
+                  Click para ver progreso del día
+                </p>
+              </div>
+              <TrendingUp className="w-12 h-12 text-purple-400 group-hover:text-purple-500 transition-colors" />
+            </div>
+          </button>
           <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-100">
             <div className="flex items-center justify-between">
               <div>
@@ -1166,6 +1412,259 @@ export default function Productos() {
                       ? "Eliminando..."
                       : "Eliminar"}
                   </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showGananciasModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[85vh] overflow-y-auto my-auto">
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <div className="bg-gradient-to-br from-purple-100 to-pink-100 p-2 sm:p-3 rounded-xl">
+                    <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-purple-700" />
+                  </div>
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-800">
+                    Progreso de Ventas del Día
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowGananciasModal(false)}
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded-xl transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4">
+                {/* Tabs para seleccionar tipo de meta */}
+                <div className="flex flex-wrap gap-2 bg-gray-100 p-2 rounded-xl">
+                  <button
+                    onClick={() => setTipoMetaActiva("diaria")}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium transition-all ${
+                      tipoMetaActiva === "diaria"
+                        ? "bg-white text-purple-700 shadow-sm"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    📅 Diaria
+                  </button>
+                  <button
+                    onClick={() => setTipoMetaActiva("semanal")}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium transition-all ${
+                      tipoMetaActiva === "semanal"
+                        ? "bg-white text-purple-700 shadow-sm"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    📊 Semanal
+                  </button>
+                  <button
+                    onClick={() => setTipoMetaActiva("mensual")}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium transition-all ${
+                      tipoMetaActiva === "mensual"
+                        ? "bg-white text-purple-700 shadow-sm"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    📈 Mensual
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 sm:p-4 border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-blue-700" />
+                      <p className="text-xs sm:text-sm font-medium text-blue-700">
+                        Ventas de Hoy
+                      </p>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-800">
+                      ${totalVentasHoy.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      {numeroVentasHoy}{" "}
+                      {numeroVentasHoy === 1 ? "venta" : "ventas"} realizadas
+                    </p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 sm:p-4 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Target className="w-4 h-4 sm:w-5 sm:h-5 text-purple-700" />
+                      <p className="text-xs sm:text-sm font-medium text-purple-700">
+                        Meta{" "}
+                        {tipoMetaActiva === "diaria"
+                          ? "Diaria"
+                          : tipoMetaActiva === "semanal"
+                          ? "Semanal"
+                          : "Mensual"}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        value={
+                          tipoMetaActiva === "diaria"
+                            ? metaDiaria
+                            : tipoMetaActiva === "semanal"
+                            ? metaSemanal
+                            : metaMensual
+                        }
+                        onChange={(e) => {
+                          const valor = Number(e.target.value) || 0;
+                          if (tipoMetaActiva === "diaria") setMetaDiaria(valor);
+                          else if (tipoMetaActiva === "semanal")
+                            setMetaSemanal(valor);
+                          else setMetaMensual(valor);
+                        }}
+                        className="text-xl sm:text-2xl font-bold text-purple-800 bg-transparent border-b-2 border-purple-300 focus:border-purple-500 outline-none w-24 sm:w-32"
+                      />
+                    </div>
+                    <p className="text-xs text-purple-600 mt-1">
+                      Click para editar
+                    </p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-3 sm:p-4 border border-emerald-200 sm:col-span-2 lg:col-span-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700" />
+                      <p className="text-xs sm:text-sm font-medium text-emerald-700">
+                        Ganancias Estimadas
+                      </p>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-emerald-800">
+                      ${gananciaEstimada.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-emerald-600 mt-1">
+                      Valor total en stock
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-pink-50 via-purple-50 to-blue-50 rounded-xl p-3 sm:p-4 border border-purple-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-800">
+                      Progreso hacia la Meta
+                    </h3>
+                    <span className="text-xl sm:text-2xl font-bold text-purple-700">
+                      {porcentajeMeta.toFixed(1)}%
+                    </span>
+                  </div>
+
+                  <div className="relative w-full h-6 sm:h-8 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      className={`absolute top-0 left-0 h-full transition-all duration-500 ease-out rounded-full ${
+                        metaCumplida
+                          ? "bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-600 animate-pulse"
+                          : "bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600"
+                      }`}
+                      style={{ width: `${porcentajeMeta}%` }}
+                    >
+                      {porcentajeMeta > 15 && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-white font-bold text-xs sm:text-sm drop-shadow">
+                            ${totalVentasHoy.toFixed(0)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-sm text-gray-600">$0</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      ${metaActual.toFixed(0)}
+                    </span>
+                  </div>
+
+                  {metaCumplida ? (
+                    <div className="mt-2 sm:mt-3 bg-gradient-to-r from-emerald-100 to-green-100 border-2 border-emerald-300 rounded-xl p-2 sm:p-3 text-center animate-pulse">
+                      <p className="text-lg sm:text-xl font-bold text-emerald-800 mb-1">
+                        🎉 ¡Meta Cumplida! 🎉
+                      </p>
+                      <p className="text-xs sm:text-sm text-emerald-700">
+                        Has superado la meta {tipoMetaActiva}. ¡Excelente
+                        trabajo!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-2 sm:mt-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-2 sm:p-3">
+                      <p className="text-xs sm:text-sm font-medium text-gray-700 text-center">
+                        Faltan{" "}
+                        <span className="text-base sm:text-lg font-bold text-purple-700">
+                          ${(metaActual - totalVentasHoy).toFixed(2)}
+                        </span>{" "}
+                        para alcanzar la meta
+                      </p>
+                      <div className="mt-2 text-center">
+                        <p className="text-xs text-gray-600">
+                          {porcentajeMeta < 25 &&
+                            "¡Vamos, apenas comenzamos! 💪"}
+                          {porcentajeMeta >= 25 &&
+                            porcentajeMeta < 50 &&
+                            "¡Buen comienzo! Sigue así 🚀"}
+                          {porcentajeMeta >= 50 &&
+                            porcentajeMeta < 75 &&
+                            "¡Ya vas a la mitad! 🔥"}
+                          {porcentajeMeta >= 75 &&
+                            porcentajeMeta < 100 &&
+                            "¡Casi lo logras! Dale con todo 💎"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200">
+                  <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">
+                    Resumen del Día
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-xs sm:text-sm text-gray-600">
+                        Número de ventas:
+                      </span>
+                      <span className="font-semibold text-gray-800 text-sm sm:text-base">
+                        {numeroVentasHoy}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">
+                        Promedio por venta:
+                      </span>
+                      <span className="font-semibold text-gray-800">
+                        $
+                        {numeroVentasHoy > 0
+                          ? (totalVentasHoy / numeroVentasHoy).toFixed(2)
+                          : "0.00"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">
+                        Total productos:
+                      </span>
+                      <span className="font-semibold text-gray-800">
+                        {productos?.length || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Stock bajo:</span>
+                      <span className="font-semibold text-red-700">
+                        {stockBajoCount}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end p-3 sm:p-4 lg:p-6 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
+                <button
+                  onClick={() => setShowGananciasModal(false)}
+                  className="bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-700 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base"
+                >
+                  Cerrar
                 </button>
               </div>
             </div>

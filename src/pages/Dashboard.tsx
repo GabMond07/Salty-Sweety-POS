@@ -242,24 +242,27 @@ export default function Dashboard() {
     return `${signo}${porcentaje.toFixed(1)}%`;
   };
 
+  // Asegurar que los valores sean números
+  const ventasHoyNum = typeof ventasHoy === "number" ? ventasHoy : 0;
+  const ventasAyerNum = typeof ventasAyer === "number" ? ventasAyer : 0;
+  const ventasMesAnteriorNum =
+    typeof ventasMesAnterior === "number" ? ventasMesAnterior : 0;
+
   const totalVentasMes =
     ventasMes?.reduce((sum, d) => sum + (d.total as number), 0) || 0;
-  const cambioVentasHoy = calcularCambio(ventasHoy || 0, ventasAyer || 0);
-  const cambioVentasMes = calcularCambio(
-    totalVentasMes,
-    ventasMesAnterior || 0
-  );
+  const cambioVentasHoy = calcularCambio(ventasHoyNum, ventasAyerNum);
+  const cambioVentasMes = calcularCambio(totalVentasMes, ventasMesAnteriorNum);
 
   const metrics = [
     {
       title: "Ventas Hoy",
-      value: `$${(ventasHoy || 0).toFixed(2)}`,
+      value: `$${ventasHoyNum.toFixed(2)}`,
       icon: DollarSign,
       color: "bg-emerald-100",
       textColor: "text-emerald-700",
       loading: loadingVentasHoy,
       change: cambioVentasHoy,
-      changePositive: (ventasHoy || 0) >= (ventasAyer || 0),
+      changePositive: ventasHoyNum >= ventasAyerNum,
     },
     {
       title: "Ventas del Mes",

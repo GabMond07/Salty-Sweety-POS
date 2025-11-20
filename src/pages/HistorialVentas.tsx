@@ -17,7 +17,20 @@ import {
   FileDown,
   X,
   Package,
+  TrendingDown,
+  Percent,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 type PeriodoFiltro = "hoy" | "semana" | "mes" | "año" | "personalizado";
 
@@ -136,6 +149,62 @@ export default function HistorialVentas() {
     enabled: !!selectedVenta,
   });
 
+  // Query para calcular costos de ventas (CBV)
+  const { data: costosVentas } = useQuery({
+    queryKey: [
+      "costos-ventas",
+      periodoFiltro,
+      fechaInicio,
+      fechaFin,
+      metodoPagoFiltro,
+      clienteFiltro,
+    ],
+    queryFn: async () => {
+      const { inicio, fin } = getFechaRange();
+      let query = supabase
+        .from("ventas")
+        .select("id")
+        .gte("created_at", inicio)
+        .lte("created_at", fin);
+
+      if (metodoPagoFiltro !== "todos") {
+        query = query.eq("metodo_pago", metodoPagoFiltro);
+      }
+
+      if (clienteFiltro !== "todos") {
+        query = query.eq("cliente_id", clienteFiltro);
+      }
+
+      const { data: ventasData, error: ventasError } = await query;
+      if (ventasError) throw ventasError;
+
+      if (!ventasData || ventasData.length === 0) {
+        return { costoTotal: 0, ingresoTotal: 0 };
+      }
+
+      const ventaIds = ventasData.map((v) => v.id);
+
+      // Obtener items de ventas con productos
+      const { data: items, error: itemsError } = await supabase
+        .from("venta_items")
+        .select("cantidad, precio_unitario, productos(precio_costo)")
+        .in("venta_id", ventaIds);
+
+      if (itemsError) throw itemsError;
+
+      const costoTotal = (items || []).reduce((sum, item: any) => {
+        const precioCosto = item.productos?.precio_costo || 0;
+        return sum + precioCosto * item.cantidad;
+      }, 0);
+
+      const ingresoTotal = (items || []).reduce((sum, item: any) => {
+        return sum + item.precio_unitario * item.cantidad;
+      }, 0);
+
+      return { costoTotal, ingresoTotal };
+    },
+  });
+
   const anularVentaMutation = useMutation({
     mutationFn: async (ventaId: number) => {
       const { data: items, error: itemsError } = await supabase
@@ -195,6 +264,38 @@ export default function HistorialVentas() {
     ventas?.filter((v) => v.metodo_pago === "efectivo").length || 0;
   const ventasTarjeta =
     ventas?.filter((v) => v.metodo_pago === "tarjeta").length || 0;
+
+  // Cálculos de ganancias
+  const costoTotal = costosVentas?.costoTotal || 0;
+  const ingresoTotal = costosVentas?.ingresoTotal || 0;
+  const gananciaBruta = ingresoTotal - costoTotal;
+  const gananciaNeta = gananciaBruta; // Por ahora sin gastos administrativos ni impuestos
+  const margenBruto =
+    ingresoTotal > 0 ? (gananciaBruta / ingresoTotal) * 100 : 0;
+
+  // Datos para la gráfica
+  const chartData = [
+    {
+      name: "Ingresos",
+      valor: ingresoTotal,
+      color: "#10b981",
+    },
+    {
+      name: "Costos",
+      valor: costoTotal,
+      color: "#ef4444",
+    },
+    {
+      name: "Ganancia Bruta",
+      valor: gananciaBruta,
+      color: "#8b5cf6",
+    },
+    {
+      name: "Ganancia Neta",
+      valor: gananciaNeta,
+      color: "#06b6d4",
+    },
+  ];
 
   const openDetalles = async (venta: Venta) => {
     setSelectedVenta(venta);
@@ -312,54 +413,217 @@ export default function HistorialVentas() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-emerald-100">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  Total Ventas
+                  Ingresos Totales
                 </p>
                 <p className="text-3xl font-bold text-emerald-700">
-                  ${totalVentas.toFixed(2)}
+                  ${ingresoTotal.toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {cantidadVentas} ventas
                 </p>
               </div>
               <DollarSign className="w-12 h-12 text-emerald-400" />
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-blue-100">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Cantidad</p>
-                <p className="text-3xl font-bold text-blue-700">
-                  {cantidadVentas}
+                <p className="text-sm font-medium text-gray-600">
+                  Costos (CBV)
+                </p>
+                <p className="text-3xl font-bold text-red-700">
+                  ${costoTotal.toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Costo de bienes vendidos
                 </p>
               </div>
-              <FileText className="w-12 h-12 text-blue-400" />
+              <TrendingDown className="w-12 h-12 text-red-400" />
             </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-purple-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Promedio</p>
-                <p className="text-3xl font-bold text-purple-700">
-                  ${promedioVenta.toFixed(2)}
+                <p className="text-sm font-medium text-gray-600">
+                  Ganancia Bruta
                 </p>
+                <p className="text-3xl font-bold text-purple-700">
+                  ${gananciaBruta.toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Ingresos - Costos</p>
               </div>
               <TrendingUp className="w-12 h-12 text-purple-400" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-2xl shadow-sm p-6 border-l-4 border-cyan-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-cyan-900">
+                  Ganancia Neta
+                </p>
+                <p className="text-3xl font-bold text-cyan-700">
+                  ${gananciaNeta.toFixed(2)}
+                </p>
+                <p className="text-xs text-cyan-600 mt-1">Ganancia final</p>
+              </div>
+              <DollarSign className="w-12 h-12 text-cyan-400" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-blue-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Margen Bruto
+                </p>
+                <p className="text-3xl font-bold text-blue-700">
+                  {margenBruto.toFixed(1)}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Rentabilidad</p>
+              </div>
+              <Percent className="w-12 h-12 text-blue-400" />
             </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-pink-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Métodos</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Métodos de Pago
+                </p>
                 <p className="text-sm font-semibold text-gray-800">
                   E: {ventasEfectivo} | T: {ventasTarjeta}
                 </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Promedio: ${promedioVenta.toFixed(2)}
+                </p>
               </div>
               <CreditCard className="w-12 h-12 text-pink-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Gráfica de Ganancias */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-8 border border-purple-50">
+          <div className="flex items-center space-x-3 mb-6">
+            <TrendingUp className="w-6 h-6 text-purple-600" />
+            <h2 className="text-2xl font-bold text-gray-800">
+              Análisis de Rentabilidad
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gráfica de Barras */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Comparativa Financiera
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: "#6b7280", fontSize: 12 }}
+                    angle={-15}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis
+                    tick={{ fill: "#6b7280", fontSize: 12 }}
+                    tickFormatter={(value) => `$${value.toFixed(0)}`}
+                  />
+                  <Tooltip
+                    formatter={(value: any) => `$${value.toFixed(2)}`}
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      padding: "8px",
+                    }}
+                  />
+                  <Bar dataKey="valor" radius={[8, 8, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Desglose Detallado */}
+            <div className="space-y-4">
+              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-emerald-900">
+                    💰 Ingresos Totales
+                  </span>
+                  <span className="text-2xl font-bold text-emerald-700">
+                    ${ingresoTotal.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-700">
+                  Total de ventas realizadas en el periodo
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-red-900">
+                    📦 Costo de Bienes Vendidos
+                  </span>
+                  <span className="text-2xl font-bold text-red-700">
+                    ${costoTotal.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-red-700">
+                  Costo del inventario vendido
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-purple-900">
+                    📈 Ganancia Bruta
+                  </span>
+                  <span className="text-2xl font-bold text-purple-700">
+                    ${gananciaBruta.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-purple-700">
+                  Ingresos - Costos (Margen: {margenBruto.toFixed(1)}%)
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl p-4 border-2 border-cyan-300">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-cyan-900">
+                    ✨ Ganancia Neta
+                  </span>
+                  <span className="text-3xl font-bold text-cyan-700">
+                    ${gananciaNeta.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-cyan-700 font-medium">
+                  Ganancia final del periodo
+                </p>
+              </div>
+
+              {gananciaBruta > 0 && (
+                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl p-3 border border-amber-200">
+                  <p className="text-xs text-amber-800 text-center font-medium">
+                    💡 Por cada peso vendido, ganas $
+                    {(gananciaBruta / ingresoTotal).toFixed(2)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

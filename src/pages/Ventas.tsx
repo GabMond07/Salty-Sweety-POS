@@ -30,7 +30,11 @@ export default function Ventas() {
   const { data: productos, isLoading: loadingProductos } = useQuery<Product[]>({
     queryKey: ["productos", searchTerm],
     queryFn: async () => {
-      let query = supabase.from("productos").select("*").gt("stock_actual", 0);
+      let query = supabase
+        .from("productos")
+        .select("id, nombre, sku, precio_venta, stock_actual, stock_minimo, imagen_url")
+        .gt("stock_actual", 0)
+        .order("nombre");
 
       if (searchTerm) {
         query = query.or(
@@ -38,10 +42,12 @@ export default function Ventas() {
         );
       }
 
-      const { data, error } = await query.limit(20);
+      const { data, error } = await query.limit(50);
       if (error) throw error;
       return data || [];
     },
+    refetchInterval: 5000, // Actualizar cada 5 segundos
+    staleTime: 2000, // Considerar datos obsoletos después de 2 segundos
   });
 
   const { data: clientes } = useQuery<Cliente[]>({
@@ -59,6 +65,23 @@ export default function Ventas() {
   const createVentaMutation = useMutation({
     mutationFn: async () => {
       if (cart.length === 0) throw new Error("El carrito está vacío");
+
+      // Validar stock disponible antes de procesar la venta
+      for (const item of cart) {
+        const { data: productoActual, error } = await supabase
+          .from("productos")
+          .select("stock_actual")
+          .eq("id", item.producto.id)
+          .single();
+
+        if (error) throw new Error("Error al verificar stock");
+        
+        if (!productoActual || productoActual.stock_actual < item.cantidad) {
+          throw new Error(
+            `Stock insuficiente para ${item.producto.nombre}. Stock disponible: ${productoActual?.stock_actual || 0}`
+          );
+        }
+      }
 
       const total = cart.reduce((sum, item) => sum + item.subtotal, 0);
 
@@ -122,6 +145,11 @@ export default function Ventas() {
   });
 
   const addToCart = (producto: Product) => {
+    // Verificar que el producto tenga stock disponible
+    if (producto.stock_actual <= 0) {
+      return;
+    }
+
     const existingItem = cart.find((item) => item.producto.id === producto.id);
 
     if (existingItem) {
@@ -211,37 +239,59 @@ export default function Ventas() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto pr-2">
-                  {productos?.map((producto) => (
-                    <button
-                      key={producto.id}
-                      onClick={() => addToCart(producto)}
-                      className="group bg-gradient-to-br from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 p-4 rounded-xl border border-pink-100 transition-colors duration-200 shadow-sm hover:shadow-md text-left"
-                    >
-                      {producto.imagen_url && (
-                        <img
-                          src={producto.imagen_url}
-                          alt={producto.nombre}
-                          className="w-full h-20 object-cover rounded-lg mb-3 group-hover:opacity-90 transition-opacity"
-                        />
-                      )}
-                      <h3 className="font-semibold text-gray-800 mb-2 truncate text-sm">
-                        {producto.nombre}
-                      </h3>
-                      <p className="text-xl font-bold text-purple-700 mb-2">
-                        ${producto.precio_venta.toFixed(2)}
-                      </p>
-                      <div className="space-y-1">
-                        <p className="text-xs text-emerald-700 font-medium">
-                          Stock: {producto.stock_actual}
-                        </p>
-                        {producto.sku && (
-                          <p className="text-xs text-gray-500">
-                            SKU: {producto.sku}
-                          </p>
+                  {productos?.map((producto) => {
+                    const stockBajo = producto.stock_actual <= (producto.stock_minimo || 5);
+                    const sinStock = producto.stock_actual === 0;
+                    
+                    // No mostrar productos sin stock
+                    if (sinStock) return null;
+                    
+                    return (
+                      <button
+                        key={producto.id}
+                        onClick={() => addToCart(producto)}
+                        disabled={sinStock}
+                        className={`group bg-gradient-to-br p-4 rounded-xl border transition-colors duration-200 shadow-sm hover:shadow-md text-left ${
+                          sinStock
+                            ? "from-gray-100 to-gray-200 border-gray-300 opacity-50 cursor-not-allowed"
+                            : stockBajo
+                            ? "from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 border-orange-200"
+                            : "from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 border-pink-100"
+                        }`}
+                      >
+                        {producto.imagen_url && (
+                          <img
+                            src={producto.imagen_url}
+                            alt={producto.nombre}
+                            className="w-full h-20 object-cover rounded-lg mb-3 group-hover:opacity-90 transition-opacity"
+                          />
                         )}
-                      </div>
-                    </button>
-                  ))}
+                        <h3 className="font-semibold text-gray-800 mb-2 truncate text-sm">
+                          {producto.nombre}
+                        </h3>
+                        <p className="text-xl font-bold text-purple-700 mb-2">
+                          ${producto.precio_venta.toFixed(2)}
+                        </p>
+                        <div className="space-y-1">
+                          <p
+                            className={`text-xs font-medium ${
+                              stockBajo
+                                ? "text-orange-700 bg-orange-100 px-2 py-1 rounded"
+                                : "text-emerald-700"
+                            }`}
+                          >
+                            Stock: {producto.stock_actual}
+                            {stockBajo && " ⚠️"}
+                          </p>
+                          {producto.sku && (
+                            <p className="text-xs text-gray-500">
+                              SKU: {producto.sku}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -395,7 +445,9 @@ export default function Ventas() {
 
                 {createVentaMutation.isError && (
                   <p className="mt-3 text-sm text-red-700 text-center bg-red-50 py-2 px-3 rounded-lg border border-red-100">
-                    Error al procesar. Revisa el carrito e intenta de nuevo.
+                    {createVentaMutation.error instanceof Error
+                      ? createVentaMutation.error.message
+                      : "Error al procesar. Revisa el carrito e intenta de nuevo."}
                   </p>
                 )}
               </div>
