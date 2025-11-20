@@ -32,7 +32,9 @@ export default function Ventas() {
     queryFn: async () => {
       let query = supabase
         .from("productos")
-        .select("id, nombre, sku, precio_venta, stock_actual, stock_minimo, imagen_url")
+        .select(
+          "id, nombre, sku, precio_venta, stock_actual, stock_minimo, imagen_url"
+        )
         .gt("stock_actual", 0)
         .order("nombre");
 
@@ -75,10 +77,12 @@ export default function Ventas() {
           .single();
 
         if (error) throw new Error("Error al verificar stock");
-        
+
         if (!productoActual || productoActual.stock_actual < item.cantidad) {
           throw new Error(
-            `Stock insuficiente para ${item.producto.nombre}. Stock disponible: ${productoActual?.stock_actual || 0}`
+            `Stock insuficiente para ${
+              item.producto.nombre
+            }. Stock disponible: ${productoActual?.stock_actual || 0}`
           );
         }
       }
@@ -239,59 +243,62 @@ export default function Ventas() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto pr-2">
-                  {productos?.map((producto) => {
-                    const stockBajo = producto.stock_actual <= (producto.stock_minimo || 5);
-                    const sinStock = producto.stock_actual === 0;
-                    
-                    // No mostrar productos sin stock
-                    if (sinStock) return null;
-                    
-                    return (
-                      <button
-                        key={producto.id}
-                        onClick={() => addToCart(producto)}
-                        disabled={sinStock}
-                        className={`group bg-gradient-to-br p-4 rounded-xl border transition-colors duration-200 shadow-sm hover:shadow-md text-left ${
-                          sinStock
-                            ? "from-gray-100 to-gray-200 border-gray-300 opacity-50 cursor-not-allowed"
-                            : stockBajo
-                            ? "from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 border-orange-200"
-                            : "from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 border-pink-100"
-                        }`}
-                      >
-                        {producto.imagen_url && (
-                          <img
-                            src={producto.imagen_url}
-                            alt={producto.nombre}
-                            className="w-full h-20 object-cover rounded-lg mb-3 group-hover:opacity-90 transition-opacity"
-                          />
-                        )}
-                        <h3 className="font-semibold text-gray-800 mb-2 truncate text-sm">
-                          {producto.nombre}
-                        </h3>
-                        <p className="text-xl font-bold text-purple-700 mb-2">
-                          ${producto.precio_venta.toFixed(2)}
-                        </p>
-                        <div className="space-y-1">
-                          <p
-                            className={`text-xs font-medium ${
-                              stockBajo
-                                ? "text-orange-700 bg-orange-100 px-2 py-1 rounded"
-                                : "text-emerald-700"
-                            }`}
-                          >
-                            Stock: {producto.stock_actual}
-                            {stockBajo && " ⚠️"}
-                          </p>
-                          {producto.sku && (
-                            <p className="text-xs text-gray-500">
-                              SKU: {producto.sku}
-                            </p>
+                  {productos &&
+                    Array.isArray(productos) &&
+                    productos.map((producto: Product) => {
+                      const stockBajo =
+                        producto.stock_actual <= (producto.stock_minimo || 5);
+                      const sinStock = producto.stock_actual === 0;
+
+                      // No mostrar productos sin stock
+                      if (sinStock) return null;
+
+                      return (
+                        <button
+                          key={producto.id}
+                          onClick={() => addToCart(producto)}
+                          disabled={sinStock}
+                          className={`group bg-gradient-to-br p-4 rounded-xl border transition-colors duration-200 shadow-sm hover:shadow-md text-left ${
+                            sinStock
+                              ? "from-gray-100 to-gray-200 border-gray-300 opacity-50 cursor-not-allowed"
+                              : stockBajo
+                              ? "from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 border-orange-200"
+                              : "from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 border-pink-100"
+                          }`}
+                        >
+                          {producto.imagen_url && (
+                            <img
+                              src={producto.imagen_url}
+                              alt={producto.nombre}
+                              className="w-full h-20 object-cover rounded-lg mb-3 group-hover:opacity-90 transition-opacity"
+                            />
                           )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                          <h3 className="font-semibold text-gray-800 mb-2 truncate text-sm">
+                            {producto.nombre}
+                          </h3>
+                          <p className="text-xl font-bold text-purple-700 mb-2">
+                            ${producto.precio_venta.toFixed(2)}
+                          </p>
+                          <div className="space-y-1">
+                            <p
+                              className={`text-xs font-medium ${
+                                stockBajo
+                                  ? "text-orange-700 bg-orange-100 px-2 py-1 rounded"
+                                  : "text-emerald-700"
+                              }`}
+                            >
+                              Stock: {producto.stock_actual}
+                              {stockBajo && " ⚠️"}
+                            </p>
+                            {producto.sku && (
+                              <p className="text-xs text-gray-500">
+                                SKU: {producto.sku}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                 </div>
               )}
             </div>
